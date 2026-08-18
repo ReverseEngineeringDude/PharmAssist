@@ -1,0 +1,123 @@
+import 'package:drift/drift.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pharmassist/core/utils/hash_utils.dart';
+import 'package:pharmassist/data/local/app_database.dart';
+import 'package:pharmassist/data/local/database_provider.dart';
+
+class AuthState {
+  final User? currentUser;
+  final bool isLoading;
+  final String? errorMessage;
+
+  const AuthState({
+    this.currentUser,
+    this.isLoading = false,
+    this.errorMessage,
+  });
+
+  bool get isAuthenticated => currentUser != null;
+  String get role => currentUser?.role ?? '';
+  String get userName => currentUser?.name ?? '';
+
+  AuthState copyWith({
+    User? currentUser,
+    bool? isLoading,
+    String? errorMessage,
+    bool clearUser = false,
+  }) {
+    return AuthState(
+      currentUser: clearUser ? null : (currentUser ?? this.currentUser),
+      isLoading: isLoading ?? this.isLoading,
+      errorMessage: errorMessage,
+    );
+  }
+}
+
+class AuthNotifier extends StateNotifier<AuthState> {
+  final AppDatabase _db;
+
+  AuthNotifier(this._db) : super(const AuthState());
+
+  Future<bool> loginSingleUser(String pin) async {
+    final users = await _db.select(_db.users).get();
+    if (users.isEmpty) {
+      state = state.copyWith(isLoading: false, errorMessage: 'No user profile found.');
+      return false;
+    }
+    return loginWithPin(users.first.id, pin);
+  }
+
+  Future<bool> loginWithPin(int userId, String pin) async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+
+    try {
+      final query = _db.select(_db.users)..where((u) => u.id.equals(userId));
+      final user = await query.getSingleOrNull();
+
+      if (user == null) {
+        state = state.copyWith(
+          isLoading: false,
+          errorMessage: 'User not found.',
+        );
+        return false;
+      }
+
+      if (HashUtils.verifyPin(pin, user.pinHash)) {
+        state = state.copyWith(
+          currentUser: user,
+          isLoading: false,
+          errorMessage: null,
+        );
+
+        // Log activity
+        await _db.into(_db.activityLogs).insert(
+          ActivityLogsCompanion.insert(
+            userId: user.id,
+            action: 'LOGIN',
+            entity: 'User',
+            entityId: Value(user.id.toString()),
+          ),
+        );
+
+        return true;
+      } else {
+        state = state.copyWith(
+          isLoading: false,
+          errorMessage: 'Invalid PIN. Please try again.',
+        );
+        return false;
+      }
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: 'Login failed: ${e.toString()}',
+      );
+      return false;
+    }
+  }
+
+  void logout() {
+    if (state.currentUser != null) {
+      final userId = state.currentUser!.id;
+      _db.into(_db.activityLogs).insert(
+        ActivityLogsCompanion.insert(
+          userId: userId,
+          action: 'LOGOUT',
+          entity: 'User',
+          entityId: Value(userId.toString()),
+        ),
+      );
+    }
+    state = const AuthState();
+  }
+}
+
+final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
+  final db = ref.watch(databaseProvider);
+  return AuthNotifier(db);
+});
+
+final allUsersProvider = FutureProvider<List<User>>((ref) async {
+  final db = ref.watch(databaseProvider);
+  return await db.select(db.users).get();
+});
