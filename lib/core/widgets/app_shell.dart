@@ -5,6 +5,8 @@ import 'package:pharmassist/core/widgets/custom_title_bar.dart';
 import 'package:pharmassist/features/auth/providers/auth_provider.dart';
 import 'package:pharmassist/features/dashboard/presentation/dashboard_screen.dart';
 import 'package:pharmassist/features/inventory/presentation/medicine_list_screen.dart';
+import 'package:pharmassist/features/purchases/presentation/purchase_list_screen.dart';
+import 'package:pharmassist/features/reports/presentation/reports_screen.dart';
 import 'package:pharmassist/features/settings/presentation/settings_screen.dart';
 
 final activeNavIndexProvider = StateProvider<int>((ref) => 0);
@@ -202,8 +204,9 @@ class AppShell extends ConsumerWidget {
                                 IconButton(
                                   icon: const Icon(Icons.logout, size: 18),
                                   tooltip: 'Log out',
-                                  onPressed: () {
-                                    ref.read(authProvider.notifier).logout();
+                                  onPressed: () async {
+                                    ref.read(activeNavIndexProvider.notifier).state = 0;
+                                    await ref.read(authProvider.notifier).logout();
                                   },
                                 ),
                               ],
@@ -236,15 +239,14 @@ class AppShell extends ConsumerWidget {
       NavItem(title: 'POS Billing', icon: Icons.point_of_sale, shortcut: 'F2'),
       NavItem(title: 'Inventory Master', icon: Icons.inventory_2_outlined),
       NavItem(title: 'Purchases', icon: Icons.shopping_bag_outlined),
-      NavItem(title: 'Customers & Credit', icon: Icons.people_alt_outlined),
       NavItem(title: 'Reports & Analytics', icon: Icons.assessment_outlined),
       NavItem(title: 'Settings & Backup', icon: Icons.settings_outlined),
     ];
 
     if (role == AppConstants.roleCashier) {
-      return [all[0], all[1], all[4]]; // Dashboard, POS Billing, Customers
+      return [all[0], all[1]]; // Dashboard, POS Billing
     } else if (role == AppConstants.rolePharmacist) {
-      return [all[0], all[1], all[2], all[3], all[4]];
+      return [all[0], all[1], all[2], all[3]];
     }
     return all; // Admin sees all
   }
@@ -258,6 +260,12 @@ class AppShell extends ConsumerWidget {
     }
     if (title == 'Inventory Master') {
       return const MedicineListScreen();
+    }
+    if (title == 'Purchases') {
+      return const PurchaseListScreen();
+    }
+    if (title == 'Reports & Analytics') {
+      return const ReportsScreen();
     }
     if (title == 'Settings & Backup') {
       return const SettingsScreen();

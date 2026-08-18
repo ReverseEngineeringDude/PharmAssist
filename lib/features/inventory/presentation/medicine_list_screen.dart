@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:data_table_2/data_table_2.dart';
 import 'package:pharmassist/core/constants/app_constants.dart';
+import 'package:pharmassist/data/local/app_database.dart';
 import 'package:pharmassist/features/inventory/presentation/batch_management_dialog.dart';
+import 'package:pharmassist/features/inventory/presentation/bulk_import_dialog.dart';
 import 'package:pharmassist/features/inventory/presentation/medicine_form_dialog.dart';
+import 'package:pharmassist/features/inventory/presentation/quick_dispense_dialog.dart';
 import 'package:pharmassist/features/inventory/presentation/stock_adjustment_dialog.dart';
 import 'package:pharmassist/features/inventory/providers/inventory_providers.dart';
 
@@ -94,6 +96,24 @@ class MedicineListScreen extends ConsumerWidget {
 
                 const SizedBox(width: 16),
 
+                // Bulk Import AI Button
+                ElevatedButton.icon(
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (_) => const BulkImportDialog(),
+                    );
+                  },
+                  icon: const Icon(Icons.cloud_upload_outlined, size: 18),
+                  label: const Text('Bulk Import (AI)'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.purple.shade700,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+
+                const SizedBox(width: 8),
+
                 // Add Medicine Button
                 ElevatedButton.icon(
                   onPressed: () {
@@ -153,6 +173,7 @@ class MedicineListScreen extends ConsumerWidget {
                     // Schedule Flag Filter Dropdown
                     SizedBox(
                       height: 38,
+                      width: 185,
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10),
                         decoration: BoxDecoration(
@@ -162,13 +183,15 @@ class MedicineListScreen extends ConsumerWidget {
                         child: DropdownButtonHideUnderline(
                           child: DropdownButton<String?>(
                             value: selectedSchedule,
-                            hint: const Text('Schedule Flag: All', style: TextStyle(fontSize: 13)),
+                            isExpanded: true,
+                            isDense: true,
+                            hint: const Text('Schedule: All', style: TextStyle(fontSize: 13), overflow: TextOverflow.ellipsis),
                             items: const [
-                              DropdownMenuItem(value: null, child: Text('All Schedules', style: TextStyle(fontSize: 13))),
-                              DropdownMenuItem(value: AppConstants.scheduleNone, child: Text('OTC / None', style: TextStyle(fontSize: 13))),
-                              DropdownMenuItem(value: AppConstants.scheduleH, child: Text('Schedule H', style: TextStyle(fontSize: 13))),
-                              DropdownMenuItem(value: AppConstants.scheduleH1, child: Text('Schedule H1', style: TextStyle(fontSize: 13))),
-                              DropdownMenuItem(value: AppConstants.scheduleX, child: Text('Schedule X', style: TextStyle(fontSize: 13))),
+                              DropdownMenuItem(value: null, child: Text('All Schedules', style: TextStyle(fontSize: 13), overflow: TextOverflow.ellipsis)),
+                              DropdownMenuItem(value: AppConstants.scheduleNone, child: Text('OTC / None', style: TextStyle(fontSize: 13), overflow: TextOverflow.ellipsis)),
+                              DropdownMenuItem(value: AppConstants.scheduleH, child: Text('Schedule H', style: TextStyle(fontSize: 13), overflow: TextOverflow.ellipsis)),
+                              DropdownMenuItem(value: AppConstants.scheduleH1, child: Text('Schedule H1', style: TextStyle(fontSize: 13), overflow: TextOverflow.ellipsis)),
+                              DropdownMenuItem(value: AppConstants.scheduleX, child: Text('Schedule X', style: TextStyle(fontSize: 13), overflow: TextOverflow.ellipsis)),
                             ],
                             onChanged: (val) {
                               ref.read(selectedScheduleFilterProvider.notifier).state = val;
@@ -184,19 +207,19 @@ class MedicineListScreen extends ConsumerWidget {
 
             const SizedBox(height: 12),
 
-            // Data Table Area
+            // ListView Area
             Expanded(
-              child: Card(
-                elevation: 0,
-                color: theme.colorScheme.surface,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  side: BorderSide(color: theme.dividerColor),
-                ),
-                child: medicinesAsync.when(
-                  data: (_) {
-                    if (filteredList.isEmpty) {
-                      return Center(
+              child: medicinesAsync.when(
+                data: (_) {
+                  if (filteredList.isEmpty) {
+                    return Card(
+                      elevation: 0,
+                      color: theme.colorScheme.surface,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        side: BorderSide(color: theme.dividerColor),
+                      ),
+                      child: Center(
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -205,98 +228,222 @@ class MedicineListScreen extends ConsumerWidget {
                             const Text('No medicines found matching your filter criteria.'),
                           ],
                         ),
-                      );
-                    }
+                      ),
+                    );
+                  }
 
-                    return DataTable2(
-                      columnSpacing: 12,
-                      horizontalMargin: 12,
-                      minWidth: 1000,
-                      headingRowColor: WidgetStateProperty.all(theme.colorScheme.surface),
-                      headingTextStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                      columns: const [
-                        DataColumn2(label: Text('BRAND NAME'), size: ColumnSize.L),
-                        DataColumn2(label: Text('GENERIC NAME (SALT)'), size: ColumnSize.L),
-                        DataColumn2(label: Text('CATEGORY'), size: ColumnSize.S),
-                        DataColumn2(label: Text('HSN'), size: ColumnSize.S),
-                        DataColumn2(label: Text('GST'), size: ColumnSize.S, numeric: true),
-                        DataColumn2(label: Text('SCHEDULE'), size: ColumnSize.S),
-                        DataColumn2(label: Text('TOTAL STOCK'), size: ColumnSize.S, numeric: true),
-                        DataColumn2(label: Text('ACTIONS'), size: ColumnSize.L),
-                      ],
-                      rows: filteredList.map((item) {
-                        final med = item.medicine;
-                        final isLowStock = item.totalQuantity <= med.reorderLevel;
-                        final isOutOfStock = item.totalQuantity == 0;
+                  return ListView.separated(
+                    itemCount: filteredList.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 8),
+                    itemBuilder: (context, index) {
+                      final item = filteredList[index];
+                      final med = item.medicine;
+                      final isLowStock = item.totalQuantity <= med.reorderLevel;
+                      final isOutOfStock = item.totalQuantity == 0;
 
-                        return DataRow2(
-                          cells: [
-                            DataCell(
-                              Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(med.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                                  if (med.manufacturer != null && med.manufacturer!.isNotEmpty)
-                                    Text(
-                                      med.manufacturer!,
-                                      style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurface.withValues(alpha: 0.6)),
-                                    ),
-                                ],
+                      return Card(
+                        elevation: 0,
+                        margin: EdgeInsets.zero,
+                        color: theme.colorScheme.surface,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          side: BorderSide(
+                            color: isOutOfStock
+                                ? Colors.red.withValues(alpha: 0.5)
+                                : (isLowStock ? Colors.orange.withValues(alpha: 0.5) : theme.dividerColor),
+                            width: (isOutOfStock || isLowStock) ? 1.5 : 1,
+                          ),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          child: Row(
+                            children: [
+                              // Icon & Brand Details
+                              CircleAvatar(
+                                radius: 18,
+                                backgroundColor: (isOutOfStock
+                                        ? Colors.red
+                                        : (isLowStock ? Colors.orange : theme.colorScheme.primary))
+                                    .withValues(alpha: 0.12),
+                                child: Icon(
+                                  Icons.medication_rounded,
+                                  size: 20,
+                                  color: isOutOfStock
+                                      ? Colors.red
+                                      : (isLowStock ? Colors.orange : theme.colorScheme.primary),
+                                ),
                               ),
-                            ),
-                            DataCell(
-                              Text(med.genericName ?? '—', style: const TextStyle(fontSize: 12)),
-                            ),
-                            DataCell(
-                              Text(med.category ?? 'General', style: const TextStyle(fontSize: 12)),
-                            ),
-                            DataCell(
-                              Text(med.hsnCode ?? '—', style: const TextStyle(fontSize: 12, fontFamily: 'monospace')),
-                            ),
-                            DataCell(
-                              Text('${med.gstRate}%', style: const TextStyle(fontSize: 12)),
-                            ),
-                            DataCell(
-                              _buildScheduleBadge(med.scheduleFlag),
-                            ),
-                            DataCell(
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.end,
-                                children: [
-                                  Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    crossAxisAlignment: CrossAxisAlignment.end,
-                                    children: [
-                                      Text(
-                                        '${item.totalQuantity} ${med.unit}',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 13,
+                              const SizedBox(width: 12),
+
+                              // Name & Metadata Column
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Text(
+                                          med.name,
+                                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        _buildScheduleBadge(med.scheduleFlag),
+                                        const SizedBox(width: 6),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                          decoration: BoxDecoration(
+                                            color: theme.colorScheme.onSurface.withValues(alpha: 0.06),
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                          child: Text(
+                                            'GST ${med.gstRate}%',
+                                            style: TextStyle(fontSize: 10, color: theme.colorScheme.onSurface.withValues(alpha: 0.7)),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 3),
+                                    Row(
+                                      children: [
+                                        if (med.genericName != null && med.genericName!.isNotEmpty) ...[
+                                          Text(
+                                            med.genericName!,
+                                            style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurface.withValues(alpha: 0.7), fontWeight: FontWeight.w500),
+                                          ),
+                                          Text(' • ', style: TextStyle(color: theme.disabledColor)),
+                                        ],
+                                        Text(
+                                          'Cat: ${med.category ?? "General"}',
+                                          style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurface.withValues(alpha: 0.6)),
+                                        ),
+                                        if (med.hsnCode != null && med.hsnCode!.isNotEmpty) ...[
+                                          Text(' • ', style: TextStyle(color: theme.disabledColor)),
+                                          Text(
+                                            'HSN: ${med.hsnCode}',
+                                            style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurface.withValues(alpha: 0.5), fontFamily: 'monospace'),
+                                          ),
+                                        ],
+                                        if (med.manufacturer != null && med.manufacturer!.isNotEmpty) ...[
+                                          Text(' • ', style: TextStyle(color: theme.disabledColor)),
+                                          Text(
+                                            med.manufacturer!,
+                                            style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurface.withValues(alpha: 0.5)),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+
+                              const SizedBox(width: 12),
+
+                              // PROMINENT CLICKABLE STOCK BADGE
+                              Tooltip(
+                                message: 'Click to Quick Dispense / Reduce Stock (Buyed someone)',
+                                child: InkWell(
+                                  onTap: () {
+                                    showDialog(
+                                      context: context,
+                                      builder: (_) => QuickDispenseDialog(item: item),
+                                    );
+                                  },
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: (isOutOfStock
+                                              ? Colors.red
+                                              : (isLowStock ? Colors.orange : Colors.green))
+                                          .withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color: (isOutOfStock
+                                                ? Colors.red
+                                                : (isLowStock ? Colors.orange : Colors.green))
+                                            .withValues(alpha: 0.4),
+                                        width: 1.5,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Column(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          crossAxisAlignment: CrossAxisAlignment.end,
+                                          children: [
+                                            Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Text(
+                                                  '${item.totalQuantity}',
+                                                  style: TextStyle(
+                                                    fontWeight: FontWeight.w900,
+                                                    fontSize: 17,
+                                                    color: isOutOfStock
+                                                        ? Colors.red
+                                                        : (isLowStock ? Colors.orange : Colors.green),
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 3),
+                                                Text(
+                                                  med.unit,
+                                                  style: TextStyle(
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: isOutOfStock
+                                                        ? Colors.red
+                                                        : (isLowStock ? Colors.orange : Colors.green),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            Text(
+                                              '${item.batchCount} batch${item.batchCount == 1 ? '' : 'es'}',
+                                              style: TextStyle(fontSize: 10, color: theme.colorScheme.onSurface.withValues(alpha: 0.5)),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Icon(
+                                          Icons.remove_circle_outline_rounded,
+                                          size: 18,
                                           color: isOutOfStock
                                               ? Colors.red
                                               : (isLowStock ? Colors.orange : Colors.green),
                                         ),
-                                      ),
-                                      Text(
-                                        '${item.batchCount} batch${item.batchCount == 1 ? '' : 'es'}',
-                                        style: TextStyle(fontSize: 10, color: theme.colorScheme.onSurface.withValues(alpha: 0.5)),
-                                      ),
-                                    ],
-                                  ),
-                                  if (isLowStock) ...[
-                                    const SizedBox(width: 4),
-                                    Tooltip(
-                                      message: 'Stock at or below reorder level (${med.reorderLevel})',
-                                      child: Icon(Icons.warning_amber_rounded, size: 16, color: isOutOfStock ? Colors.red : Colors.orange),
+                                      ],
                                     ),
-                                  ],
-                                ],
+                                  ),
+                                ),
                               ),
-                            ),
-                            DataCell(
+
+                              const SizedBox(width: 12),
+
+                              // Actions Buttons
                               Row(
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
+                                  // Quick Sell / Dispense Button
+                                  ElevatedButton.icon(
+                                    onPressed: () {
+                                      showDialog(
+                                        context: context,
+                                        builder: (_) => QuickDispenseDialog(item: item),
+                                      );
+                                    },
+                                    icon: const Icon(Icons.remove, size: 14),
+                                    label: const Text('- Quick Sell', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.orange,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                                      minimumSize: Size.zero,
+                                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+
                                   // Batches Button
                                   OutlinedButton.icon(
                                     onPressed: () {
@@ -305,15 +452,15 @@ class MedicineListScreen extends ConsumerWidget {
                                         builder: (_) => BatchManagementDialog(medicine: med),
                                       );
                                     },
-                                    icon: const Icon(Icons.qr_code, size: 14),
+                                    icon: const Icon(Icons.qr_code, size: 13),
                                     label: const Text('Batches', style: TextStyle(fontSize: 11)),
                                     style: OutlinedButton.styleFrom(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
                                       minimumSize: Size.zero,
                                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                     ),
                                   ),
-                                  const SizedBox(width: 6),
+                                  const SizedBox(width: 4),
 
                                   // Stock Adjust Button
                                   OutlinedButton.icon(
@@ -323,20 +470,22 @@ class MedicineListScreen extends ConsumerWidget {
                                         builder: (_) => StockAdjustmentDialog(medicine: med),
                                       );
                                     },
-                                    icon: const Icon(Icons.tune, size: 14),
+                                    icon: const Icon(Icons.tune, size: 13),
                                     label: const Text('Adjust', style: TextStyle(fontSize: 11)),
                                     style: OutlinedButton.styleFrom(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
                                       minimumSize: Size.zero,
                                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                     ),
                                   ),
-                                  const SizedBox(width: 6),
+                                  const SizedBox(width: 4),
 
-                                  // Edit Medicine
+                                  // Edit Button
                                   IconButton(
                                     icon: const Icon(Icons.edit_outlined, size: 16),
                                     tooltip: 'Edit Details',
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
                                     onPressed: () {
                                       showDialog(
                                         context: context,
@@ -344,17 +493,26 @@ class MedicineListScreen extends ConsumerWidget {
                                       );
                                     },
                                   ),
+
+                                  // Delete Button
+                                  IconButton(
+                                    icon: const Icon(Icons.delete_outline, size: 16, color: Colors.red),
+                                    tooltip: 'Delete Product',
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                                    onPressed: () => _confirmDelete(context, ref, med),
+                                  ),
                                 ],
                               ),
-                            ),
-                          ],
-                        );
-                      }).toList(),
-                    );
-                  },
-                  loading: () => const Center(child: CircularProgressIndicator()),
-                  error: (err, stack) => Center(child: Text('Error loading medicines: $err')),
-                ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (err, _) => Center(child: Text('Error loading inventory: $err')),
               ),
             ),
           ],
@@ -423,6 +581,52 @@ class MedicineListScreen extends ConsumerWidget {
       child: Text(
         text,
         style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: color),
+      ),
+    );
+  }
+
+  void _confirmDelete(BuildContext context, WidgetRef ref, Medicine medicine) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.warning_amber_rounded, color: Colors.red),
+            const SizedBox(width: 8),
+            Text('Delete ${medicine.name}?'),
+          ],
+        ),
+        content: Text(
+          'Are you sure you want to permanently delete "${medicine.name}"? '
+          'This action cannot be undone and will remove all stock history and active batches.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () async {
+              Navigator.of(ctx).pop();
+              final repo = ref.read(inventoryRepositoryProvider);
+              await repo.deleteMedicine(medicine.id);
+              ref.invalidate(medicinesWithStockProvider);
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('"${medicine.name}" deleted successfully.'),
+                    backgroundColor: Colors.red.shade700,
+                  ),
+                );
+              }
+            },
+            child: const Text('Delete Product', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
       ),
     );
   }

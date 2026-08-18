@@ -28,6 +28,42 @@ class BatchWithMedicine {
   });
 }
 
+class BulkImportItem {
+  final String name;
+  final String? genericName;
+  final String? category;
+  final String? manufacturer;
+  final String? hsnCode;
+  final double gstRate;
+  final String scheduleFlag;
+  final String unit;
+  final int reorderLevel;
+
+  // Optional initial batch details
+  final String? batchNo;
+  final DateTime? expiryDate;
+  final double? mrp;
+  final double? purchasePrice;
+  final int? quantity;
+
+  BulkImportItem({
+    required this.name,
+    this.genericName,
+    this.category,
+    this.manufacturer,
+    this.hsnCode,
+    this.gstRate = 12.0,
+    this.scheduleFlag = 'NONE',
+    this.unit = 'Strip',
+    this.reorderLevel = 10,
+    this.batchNo,
+    this.expiryDate,
+    this.mrp,
+    this.purchasePrice,
+    this.quantity,
+  });
+}
+
 class InventoryRepository {
   final AppDatabase _db;
 
@@ -109,18 +145,88 @@ class InventoryRepository {
   }
 
   Future<int> deleteMedicine(int id) async {
-    final count = await (_db.delete(_db.medicines)..where((m) => m.id.equals(id))).go();
-    if (count > 0) {
-      await _db.into(_db.activityLogs).insert(
-        ActivityLogsCompanion.insert(
-          userId: 1,
-          action: 'DELETE_MEDICINE',
-          entity: 'Medicine',
-          entityId: Value(id.toString()),
-        ),
-      );
-    }
+    int count = 0;
+    await _db.transaction(() async {
+      // 1. Find all batch IDs belonging to this medicine
+      final batches = await (_db.select(_db.batches)..where((b) => b.medicineId.equals(id))).get();
+      final batchIds = batches.map((b) => b.id).toList();
+
+      if (batchIds.isNotEmpty) {
+        // 2. Remove related stock adjustment audit entries
+        await (_db.delete(_db.stockAdjustments)..where((s) => s.batchId.isIn(batchIds))).go();
+
+        // 3. Remove related purchase invoice items
+        await (_db.delete(_db.purchaseInvoiceItems)..where((p) => p.batchId.isIn(batchIds))).go();
+
+        // 4. Remove related sale line items
+        await (_db.delete(_db.saleItems)..where((s) => s.batchId.isIn(batchIds))).go();
+
+        // 5. Delete all batches for this medicine
+        await (_db.delete(_db.batches)..where((b) => b.medicineId.equals(id))).go();
+      }
+
+      // 6. Delete the medicine record
+      count = await (_db.delete(_db.medicines)..where((m) => m.id.equals(id))).go();
+
+      if (count > 0) {
+        await _db.into(_db.activityLogs).insert(
+          ActivityLogsCompanion.insert(
+            userId: 1,
+            action: 'DELETE_MEDICINE',
+            entity: 'Medicine',
+            entityId: Value(id.toString()),
+          ),
+        );
+      }
+    });
+
     return count;
+  }
+
+  Future<int> bulkImportMedicines(List<BulkImportItem> items) async {
+    int importedCount = 0;
+    await _db.transaction(() async {
+      for (final item in items) {
+        final medId = await _db.into(_db.medicines).insert(
+          MedicinesCompanion.insert(
+            name: item.name,
+            genericName: Value(item.genericName),
+            category: Value(item.category ?? 'General'),
+            manufacturer: Value(item.manufacturer),
+            hsnCode: Value(item.hsnCode),
+            gstRate: Value(item.gstRate),
+            scheduleFlag: Value(item.scheduleFlag),
+            unit: Value(item.unit),
+            reorderLevel: Value(item.reorderLevel),
+          ),
+        );
+
+        if (item.batchNo != null && item.batchNo!.isNotEmpty && item.expiryDate != null) {
+          await _db.into(_db.batches).insert(
+            BatchesCompanion.insert(
+              medicineId: medId,
+              batchNo: item.batchNo!,
+              expiryDate: item.expiryDate!,
+              mrp: item.mrp ?? 0.0,
+              purchasePrice: item.purchasePrice ?? 0.0,
+              quantity: Value(item.quantity ?? 0),
+            ),
+          );
+        }
+
+        await _db.into(_db.activityLogs).insert(
+          ActivityLogsCompanion.insert(
+            userId: 1,
+            action: 'BULK_IMPORT_MEDICINE',
+            entity: 'Medicine',
+            entityId: Value(medId.toString()),
+          ),
+        );
+
+        importedCount++;
+      }
+    });
+    return importedCount;
   }
 
   // --- BATCH MANAGEMENT ---
@@ -214,6 +320,70 @@ class InventoryRepository {
           action: 'STOCK_ADJUSTMENT',
           entity: 'Batch',
           entityId: Value(batchId.toString()),
+        ),
+      );
+    });
+  }
+
+  /// Quick Dispense / Sale stock reduction using FEFO (First Expiry First Out)
+  Future<void> quickReduceStockFEFO({
+    required int medicineId,
+    required int reduceQty,
+    required int userId,
+    String reason = 'Quick Dispense / OTC Sale',
+  }) async {
+    if (reduceQty <= 0) return;
+
+    await _db.transaction(() async {
+      final now = DateTime.now();
+      // Fetch available batches ordered by expiry date (FEFO)
+      final batches = await (_db.select(_db.batches)
+            ..where((b) =>
+                b.medicineId.equals(medicineId) &
+                b.quantity.isBiggerThan(const Constant(0)) &
+                b.expiryDate.isBiggerThan(Variable(now)))
+            ..orderBy([(b) => OrderingTerm.asc(b.expiryDate)]))
+          .get();
+
+      int remainingToDeduct = reduceQty;
+      final totalAvailable = batches.fold<int>(0, (sum, b) => sum + b.quantity);
+
+      if (totalAvailable < reduceQty) {
+        throw Exception('Insufficient unexpired stock available! Required: $reduceQty, Available: $totalAvailable');
+      }
+
+      for (final batch in batches) {
+        if (remainingToDeduct <= 0) break;
+
+        final deductFromThisBatch = batch.quantity >= remainingToDeduct ? remainingToDeduct : batch.quantity;
+        final newBatchQty = batch.quantity - deductFromThisBatch;
+
+        // 1. Update Batch
+        await (_db.update(_db.batches)..where((b) => b.id.equals(batch.id))).write(
+          BatchesCompanion(quantity: Value(newBatchQty)),
+        );
+
+        // 2. Insert Stock Adjustment record
+        await _db.into(_db.stockAdjustments).insert(
+          StockAdjustmentsCompanion.insert(
+            batchId: batch.id,
+            qtyChange: -deductFromThisBatch,
+            reason: reason,
+            date: DateTime.now(),
+            userId: userId,
+          ),
+        );
+
+        remainingToDeduct -= deductFromThisBatch;
+      }
+
+      // Log activity
+      await _db.into(_db.activityLogs).insert(
+        ActivityLogsCompanion.insert(
+          userId: userId,
+          action: 'QUICK_DISPENSE',
+          entity: 'Medicine',
+          entityId: Value('$medicineId (Deducted $reduceQty units)'),
         ),
       );
     });

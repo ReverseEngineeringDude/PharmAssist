@@ -50,7 +50,13 @@ class PharmAssistApp extends ConsumerWidget {
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: themeMode,
-      home: authState.isAuthenticated ? const AppShell() : const LoginScreen(),
+      home: authState.isLoading
+          ? const Scaffold(
+              body: Center(
+                child: CircularProgressIndicator(),
+              ),
+            )
+          : (authState.isAuthenticated ? const AppShell() : const LoginScreen()),
     );
   }
 }
