@@ -8,28 +8,49 @@ PharmAssist is an open-source, enterprise-grade pharmacy management application 
 
 ### Desktop ERP Dashboard
 ![Desktop Dashboard Interface](./assets/dashboard.png)
-<!-- Add your Desktop Dashboard screenshot above by placing the image in docs/images/ or updating the URL -->
+- **Key Analytics at a Glance**: Displays real-time metrics for total revenue, daily sales count, low stock warnings, and near-expiry alerts.
+- **Role-Based Control**: Features dynamic navigation tailored for Administrators, Pharmacists, and Cashiers.
+- **System Status**: Displays network status indicator for cloud backup synchronization.
 
 ### Point of Sale (POS) Billing System
 ![POS Billing Interface](./assets/pos_billing.png)
-<!-- Add your POS Billing screenshot above -->
+- **Fast Product Search**: Instant lookup by medicine name, generic name, HSN code, or batch number.
+- **Automated FEFO Selection**: Prioritizes batches nearing expiry (First Expiry, First Out) to minimize stock waste.
+- **Real-Time Tax Calculation**: Automatic GST calculation, item discount handling, and receipt generation.
+- **Keyboard Shortcut Support**: Press F11 for full-screen mode and quick key triggers during checkout.
 
 ### Inventory Master
 ![Inventory Master](./assets/inventry_master.png)
+- **Centralized Stock Registry**: Complete control over medicine master data, category tags, and unit types.
+- **Batch Tracking**: Tracks individual batch numbers, manufacturing dates, expiry dates, purchase costs, and MRP.
+- **Stock Audit & Adjustments**: Manual inventory adjustment logs for damagings, returns, or stock counts.
+- **Automated Reorder Alerts**: Highlights items falling below defined minimum stock thresholds.
 
-### Purchase
+### Purchase & Invoice Management
 ![Purchase](./assets/purchases.png)
+- **Supplier & Invoicing Logs**: Maintains complete records of supplier invoices and stock inward entries.
+- **Distributor Management**: Store supplier contact information, GST numbers, and payment history.
+- **Bulk Batch Registration**: Add multiple medicine batches simultaneously when receiving stock shipments.
 
-### Reports
+### Reports & Business Intelligence
 ![Reports](./assets/reports.png)
+- **Visual Performance Charts**: Revenue trends and sales distribution graphs built using FL Chart.
+- **Expiry Risk Analysis**: Forecasts medicines expiring within 30, 60, or 90 days for proactive clearance.
+- **Activity Audit Trail**: Logs critical user actions such as item deletions, stock updates, and price changes.
 
-## Mobile Companion View
-![Mobile Interface](./assets/dashboard_mobile.jpg)
-<!-- Add your Mobile UI screenshot above -->
+### Mobile Companion View - Dashboard
+<img src="./assets/dashboard_mobile.jpg" alt="Mobile Dashboard View" width="320" style="max-width: 100%; height: auto; border-radius: 8px; border: 1px solid #334155; margin-top: 8px; margin-bottom: 12px;" />
 
-### Bulk Inventory Import Dialog
-![Bulk Import Dialog](./assets/inventory_mobile.jpg)
-<!-- Add your Bulk Import dialog screenshot above -->
+- **Responsive Touch Design**: Optimized UI layouts tailored specifically for Android smartphones and tablets.
+- **On-the-Go Dashboard**: View daily earnings, bill counts, and stock alerts from anywhere in the pharmacy.
+- **Navigation Drawer**: Quick access to mobile inventory, cloud sync controls, and developer settings.
+
+### Mobile Companion View - Inventory Management
+<img src="./assets/inventory_mobile.jpg" alt="Mobile Inventory View" width="320" style="max-width: 100%; height: auto; border-radius: 8px; border: 1px solid #334155; margin-top: 8px; margin-bottom: 12px;" />
+
+- **Mobile Stock Lookup**: Instantly search medicine availability and check shelf stock directly on mobile devices.
+- **Mobile Cloud Restore**: Sync inventory updates directly with Google Cloud Firestore.
+- **Touch-Optimized Lists**: High-contrast, easy-to-read list tiles for fast stock verification.
 
 ---
 
