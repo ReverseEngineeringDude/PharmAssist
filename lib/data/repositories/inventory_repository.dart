@@ -622,9 +622,6 @@ class InventoryRepository {
         final List<dynamic> batchesList = item['batches'] as List<dynamic>? ?? [];
         int validBatchesCount = 0;
 
-        // Clear existing local batches for medId to prevent duplicate batch stock accumulation
-        await (_db.delete(_db.batches)..where((b) => b.medicineId.equals(medId))).go();
-
         for (final bObj in batchesList) {
           if (bObj is Map) {
             final batchNo = bObj['batchNo']?.toString();

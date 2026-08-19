@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:pharmassist/core/constants/app_constants.dart';
@@ -50,21 +51,34 @@ class PharmAssistApp extends ConsumerWidget {
     final authState = ref.watch(authProvider);
     final themeMode = ref.watch(themeModeProvider);
 
-    return MaterialApp(
-      title: AppConstants.appName,
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
-      themeMode: themeMode,
-      home: authState.isLoading
-          ? const Scaffold(
-              body: Center(
-                child: CircularProgressIndicator(),
-              ),
-            )
-          : (authState.isAuthenticated
-              ? _getResponsiveShell(context)
-              : const LoginScreen()),
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.f11): () async {
+          if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
+            final isFullScreen = await windowManager.isFullScreen();
+            await windowManager.setFullScreen(!isFullScreen);
+          }
+        },
+      },
+      child: Focus(
+        autofocus: true,
+        child: MaterialApp(
+          title: AppConstants.appName,
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.lightTheme,
+          darkTheme: AppTheme.darkTheme,
+          themeMode: themeMode,
+          home: authState.isLoading
+              ? const Scaffold(
+                  body: Center(
+                    child: CircularProgressIndicator(),
+                  ),
+                )
+              : (authState.isAuthenticated
+                  ? _getResponsiveShell(context)
+                  : const LoginScreen()),
+        ),
+      ),
     );
   }
 

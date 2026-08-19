@@ -17,8 +17,9 @@ class CustomTitleBar extends ConsumerStatefulWidget implements PreferredSizeWidg
   ConsumerState<CustomTitleBar> createState() => _CustomTitleBarState();
 }
 
-class _CustomTitleBarState extends ConsumerState<CustomTitleBar> {
+class _CustomTitleBarState extends ConsumerState<CustomTitleBar> with WindowListener {
   bool _isMaximized = false;
+  bool _isFullScreen = false;
 
   bool get _isDesktop => !kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS);
 
@@ -26,16 +27,39 @@ class _CustomTitleBarState extends ConsumerState<CustomTitleBar> {
   void initState() {
     super.initState();
     if (_isDesktop) {
-      _checkMaximized();
+      windowManager.addListener(this);
+      _checkWindowState();
     }
   }
 
-  Future<void> _checkMaximized() async {
+  @override
+  void dispose() {
+    if (_isDesktop) {
+      windowManager.removeListener(this);
+    }
+    super.dispose();
+  }
+
+  @override
+  void onWindowMaximize() => _checkWindowState();
+
+  @override
+  void onWindowUnmaximize() => _checkWindowState();
+
+  @override
+  void onWindowEnterFullScreen() => _checkWindowState();
+
+  @override
+  void onWindowLeaveFullScreen() => _checkWindowState();
+
+  Future<void> _checkWindowState() async {
     if (!_isDesktop) return;
     final maximized = await windowManager.isMaximized();
+    final fullScreen = await windowManager.isFullScreen();
     if (mounted) {
       setState(() {
         _isMaximized = maximized;
+        _isFullScreen = fullScreen;
       });
     }
   }
@@ -47,7 +71,14 @@ class _CustomTitleBarState extends ConsumerState<CustomTitleBar> {
     } else {
       await windowManager.maximize();
     }
-    _checkMaximized();
+    _checkWindowState();
+  }
+
+  void _toggleFullScreen() async {
+    if (!_isDesktop) return;
+    final fullScreen = await windowManager.isFullScreen();
+    await windowManager.setFullScreen(!fullScreen);
+    _checkWindowState();
   }
 
   @override
@@ -181,6 +212,11 @@ class _CustomTitleBarState extends ConsumerState<CustomTitleBar> {
                 },
               ),
               if (_isDesktop) ...[
+                _WindowButton(
+                  icon: _isFullScreen ? Icons.fullscreen_exit_rounded : Icons.fullscreen_rounded,
+                  onPressed: _toggleFullScreen,
+                  tooltip: _isFullScreen ? 'Exit Fullscreen (F11)' : 'Fullscreen (F11)',
+                ),
                 _WindowButton(
                   icon: Icons.remove,
                   onPressed: () {

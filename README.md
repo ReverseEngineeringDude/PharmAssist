@@ -7,19 +7,28 @@ PharmAssist is an open-source, enterprise-grade pharmacy management application 
 ## User Interface Screenshots
 
 ### Desktop ERP Dashboard
-![Desktop Dashboard Interface](docs/images/desktop_dashboard_placeholder.png)
+![Desktop Dashboard Interface](./assets/dashboard.png)
 <!-- Add your Desktop Dashboard screenshot above by placing the image in docs/images/ or updating the URL -->
 
 ### Point of Sale (POS) Billing System
-![POS Billing Interface](docs/images/pos_billing_placeholder.png)
+![POS Billing Interface](./assets/pos_billing.png)
 <!-- Add your POS Billing screenshot above -->
 
-### Mobile Companion View
-![Mobile Interface](docs/images/mobile_app_placeholder.png)
+### Inventory Master
+![Inventory Master](./assets/inventry_master.png)
+
+### Purchase
+![Purchase](./assets/purchases.png)
+
+### Reports
+![Reports](./assets/reports.png)
+
+## Mobile Companion View
+![Mobile Interface](./assets/dashboard_mobile.jpg)
 <!-- Add your Mobile UI screenshot above -->
 
 ### Bulk Inventory Import Dialog
-![Bulk Import Dialog](docs/images/bulk_import_placeholder.png)
+![Bulk Import Dialog](./assets/inventory_mobile.jpg)
 <!-- Add your Bulk Import dialog screenshot above -->
 
 ---
