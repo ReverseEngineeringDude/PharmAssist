@@ -1,0 +1,118 @@
+name: Build Release Binaries
+
+on:
+  push:
+    tags:
+      - 'v*'
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+jobs:
+  build-android:
+    name: Build Android APK Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Set up Java JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Get Dependencies
+        run: flutter pub get
+
+      - name: Run Build Runner Code Generation
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Build Android Release APK
+        run: flutter build apk --release
+
+      - name: Upload Android APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pharmassist-android-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+
+  build-windows:
+    name: Build Windows Desktop Release
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Get Dependencies
+        run: flutter pub get
+
+      - name: Run Build Runner Code Generation
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Build Windows Desktop Release
+        run: flutter build windows --release
+
+      - name: Compress Windows Output
+        shell: powershell
+        run: |
+          Compress-Archive -Path "build\windows\x64\runner\Release\*" -DestinationPath "pharmassist-windows-x64.zip"
+
+      - name: Upload Windows Desktop Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pharmassist-windows-zip
+          path: pharmassist-windows-x64.zip
+
+  create-github-release:
+    name: Publish GitHub Release
+    needs: [build-android, build-windows]
+    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Download Android Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: pharmassist-android-apk
+          path: ./artifacts/android
+
+      - name: Download Windows Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: pharmassist-windows-zip
+          path: ./artifacts/windows
+
+      - name: Create Release and Upload Assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ./artifacts/android/app-release.apk
+            ./artifacts/windows/pharmassist-windows-x64.zip
+          draft: false
+          prerelease: false
+          generate_release_notes: true
