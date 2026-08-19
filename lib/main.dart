@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
@@ -8,26 +10,30 @@ import 'package:pharmassist/core/widgets/app_shell.dart';
 import 'package:pharmassist/features/auth/presentation/login_screen.dart';
 import 'package:pharmassist/features/auth/providers/auth_provider.dart';
 
+import 'package:pharmassist/features/mobile/presentation/mobile_app_shell.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Window Manager for Desktop
-  await windowManager.ensureInitialized();
+  // Initialize Window Manager for Desktop ONLY
+  if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
+    await windowManager.ensureInitialized();
 
-  WindowOptions windowOptions = const WindowOptions(
-    size: Size(1366, 768),
-    minimumSize: Size(AppConstants.minWindowWidth, AppConstants.minWindowHeight),
-    center: true,
-    backgroundColor: Colors.transparent,
-    skipTaskbar: false,
-    titleBarStyle: TitleBarStyle.hidden,
-    title: AppConstants.appName,
-  );
+    WindowOptions windowOptions = const WindowOptions(
+      size: Size(1366, 768),
+      minimumSize: Size(AppConstants.minWindowWidth, AppConstants.minWindowHeight),
+      center: true,
+      backgroundColor: Colors.transparent,
+      skipTaskbar: false,
+      titleBarStyle: TitleBarStyle.hidden,
+      title: AppConstants.appName,
+    );
 
-  windowManager.waitUntilReadyToShow(windowOptions, () async {
-    await windowManager.show();
-    await windowManager.focus();
-  });
+    windowManager.waitUntilReadyToShow(windowOptions, () async {
+      await windowManager.show();
+      await windowManager.focus();
+    });
+  }
 
   runApp(
     const ProviderScope(
@@ -56,7 +62,19 @@ class PharmAssistApp extends ConsumerWidget {
                 child: CircularProgressIndicator(),
               ),
             )
-          : (authState.isAuthenticated ? const AppShell() : const LoginScreen()),
+          : (authState.isAuthenticated
+              ? _getResponsiveShell(context)
+              : const LoginScreen()),
     );
+  }
+
+  Widget _getResponsiveShell(BuildContext context) {
+    final isMobilePlatform = !kIsWeb && (Platform.isAndroid || Platform.isIOS);
+    final isSmallScreen = MediaQuery.of(context).size.width < 700;
+
+    if (isMobilePlatform || isSmallScreen) {
+      return const MobileAppShell();
+    }
+    return const AppShell();
   }
 }

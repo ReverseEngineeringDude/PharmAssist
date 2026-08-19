@@ -37,6 +37,11 @@ final batchesForMedicineProvider = StreamProvider.family<List<Batch>, int>((ref,
   return repo.watchBatchesForMedicine(medicineId);
 });
 
+final allBatchesStreamProvider = StreamProvider<List<Batch>>((ref) {
+  final repo = ref.watch(inventoryRepositoryProvider);
+  return repo.watchAllBatches();
+});
+
 final medicineSearchQueryProvider = StateProvider<String>((ref) => '');
 final selectedCategoryFilterProvider = StateProvider<String?>((ref) => null);
 final selectedScheduleFilterProvider = StateProvider<String?>((ref) => null);

@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
@@ -18,13 +20,18 @@ class CustomTitleBar extends ConsumerStatefulWidget implements PreferredSizeWidg
 class _CustomTitleBarState extends ConsumerState<CustomTitleBar> {
   bool _isMaximized = false;
 
+  bool get _isDesktop => !kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS);
+
   @override
   void initState() {
     super.initState();
-    _checkMaximized();
+    if (_isDesktop) {
+      _checkMaximized();
+    }
   }
 
   Future<void> _checkMaximized() async {
+    if (!_isDesktop) return;
     final maximized = await windowManager.isMaximized();
     if (mounted) {
       setState(() {
@@ -34,6 +41,7 @@ class _CustomTitleBarState extends ConsumerState<CustomTitleBar> {
   }
 
   void _toggleMaximize() async {
+    if (!_isDesktop) return;
     if (_isMaximized) {
       await windowManager.unmaximize();
     } else {
@@ -172,22 +180,28 @@ class _CustomTitleBarState extends ConsumerState<CustomTitleBar> {
                   );
                 },
               ),
-              _WindowButton(
-                icon: Icons.remove,
-                onPressed: () => windowManager.minimize(),
-                tooltip: 'Minimize',
-              ),
-              _WindowButton(
-                icon: _isMaximized ? Icons.filter_none : Icons.crop_square,
-                onPressed: _toggleMaximize,
-                tooltip: _isMaximized ? 'Restore' : 'Maximize',
-              ),
-              _WindowButton(
-                icon: Icons.close,
-                isClose: true,
-                onPressed: () => windowManager.close(),
-                tooltip: 'Close',
-              ),
+              if (_isDesktop) ...[
+                _WindowButton(
+                  icon: Icons.remove,
+                  onPressed: () {
+                    if (_isDesktop) windowManager.minimize();
+                  },
+                  tooltip: 'Minimize',
+                ),
+                _WindowButton(
+                  icon: _isMaximized ? Icons.filter_none : Icons.crop_square,
+                  onPressed: _toggleMaximize,
+                  tooltip: _isMaximized ? 'Restore' : 'Maximize',
+                ),
+                _WindowButton(
+                  icon: Icons.close,
+                  isClose: true,
+                  onPressed: () {
+                    if (_isDesktop) windowManager.close();
+                  },
+                  tooltip: 'Close',
+                ),
+              ],
             ],
           ),
         ],

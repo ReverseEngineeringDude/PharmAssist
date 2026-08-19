@@ -17,6 +17,7 @@ class AuthState {
   });
 
   bool get isAuthenticated => currentUser != null;
+  int? get userId => currentUser?.id;
   String get role => currentUser?.role ?? '';
   String get userName => currentUser?.name ?? '';
 

@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:pharmassist/data/local/app_database.dart';
 import 'package:pharmassist/data/repositories/inventory_repository.dart';
 import 'package:pharmassist/data/repositories/purchase_repository.dart';
+import 'package:pharmassist/data/services/firestore_backup_service.dart';
 import 'package:pharmassist/features/inventory/providers/inventory_providers.dart';
 import 'package:pharmassist/features/purchases/presentation/supplier_management_dialog.dart';
 import 'package:pharmassist/features/purchases/providers/purchase_providers.dart';
@@ -120,6 +121,26 @@ class _PurchaseEntryDialogState extends ConsumerState<PurchaseEntryDialog> {
         invoiceDate: _invoiceDate,
         items: _addedItems,
       );
+
+      ref.invalidate(purchaseInvoicesProvider);
+      ref.invalidate(medicinesWithStockProvider);
+      ref.invalidate(allBatchesStreamProvider);
+      ref.invalidate(suppliersProvider);
+
+      // Auto-sync to Cloud Firestore if configured
+      final backupState = ref.read(firestoreBackupNotifierProvider);
+      if (backupState.isConfigured) {
+        final inventoryRepo = ref.read(inventoryRepositoryProvider);
+        inventoryRepo.getMedicinesWithStock().then((medicines) {
+          inventoryRepo.getAllBatches().then((batches) {
+            ref.read(firestoreBackupNotifierProvider.notifier).backupStocks(
+              medicines: medicines,
+              allBatches: batches,
+              purchaseRepo: repo,
+            );
+          });
+        });
+      }
 
       if (mounted) {
         Navigator.of(context).pop(true);

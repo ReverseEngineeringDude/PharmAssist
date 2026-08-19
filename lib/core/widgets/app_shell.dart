@@ -1,12 +1,17 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pharmassist/core/constants/app_constants.dart';
+import 'package:pharmassist/core/services/network_service.dart';
 import 'package:pharmassist/core/widgets/custom_title_bar.dart';
 import 'package:pharmassist/features/auth/providers/auth_provider.dart';
 import 'package:pharmassist/features/dashboard/presentation/dashboard_screen.dart';
 import 'package:pharmassist/features/inventory/presentation/medicine_list_screen.dart';
+import 'package:pharmassist/features/pos/presentation/pos_screen.dart';
 import 'package:pharmassist/features/purchases/presentation/purchase_list_screen.dart';
 import 'package:pharmassist/features/reports/presentation/reports_screen.dart';
+import 'package:pharmassist/features/about/presentation/about_screen.dart';
 import 'package:pharmassist/features/settings/presentation/settings_screen.dart';
 
 final activeNavIndexProvider = StateProvider<int>((ref) => 0);
@@ -19,14 +24,19 @@ class AppShell extends ConsumerWidget {
     final theme = Theme.of(context);
     final authState = ref.watch(authProvider);
     final activeIndex = ref.watch(activeNavIndexProvider);
+    final networkState = ref.watch(networkNotifierProvider);
 
     final navItems = _getNavItemsForRole(authState.role);
+    final isDesktop = !kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS);
 
     return Scaffold(
       body: Column(
         children: [
           // Custom Desktop Title Bar
-          const CustomTitleBar(),
+          if (isDesktop) const CustomTitleBar(),
+
+          // Offline Warning Banner (Displayed when user is not connected to internet)
+          if (!networkState.isOnline) _buildOfflineTopBanner(context, ref, networkState),
 
           // Main ERP Content Area
           Expanded(
@@ -43,7 +53,7 @@ class AppShell extends ConsumerWidget {
                   ),
                   child: Column(
                     children: [
-                      // Store & Status Banner
+                      // Store & Network Status Banner
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
@@ -70,20 +80,27 @@ class AppShell extends ConsumerWidget {
                                   ),
                                   Row(
                                     children: [
-                                      Container(
-                                        width: 6,
-                                        height: 6,
-                                        decoration: const BoxDecoration(
-                                          color: Colors.greenAccent,
+                                      AnimatedContainer(
+                                        duration: const Duration(milliseconds: 300),
+                                        width: 8,
+                                        height: 8,
+                                        decoration: BoxDecoration(
+                                          color: networkState.isOnline ? const Color(0xFF10B981) : Colors.redAccent,
                                           shape: BoxShape.circle,
                                         ),
                                       ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        'Offline Mode',
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                                      const SizedBox(width: 6),
+                                      Expanded(
+                                        child: Text(
+                                          networkState.isOnline ? 'Online Sync' : 'No Internet',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
+                                            color: networkState.isOnline
+                                                ? const Color(0xFF10B981)
+                                                : Colors.redAccent,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
                                         ),
                                       ),
                                     ],
@@ -241,12 +258,13 @@ class AppShell extends ConsumerWidget {
       NavItem(title: 'Purchases', icon: Icons.shopping_bag_outlined),
       NavItem(title: 'Reports & Analytics', icon: Icons.assessment_outlined),
       NavItem(title: 'Settings & Backup', icon: Icons.settings_outlined),
+      NavItem(title: 'About Us', icon: Icons.info_outline_rounded),
     ];
 
     if (role == AppConstants.roleCashier) {
-      return [all[0], all[1]]; // Dashboard, POS Billing
+      return [all[0], all[1], all[6]]; // Dashboard, POS Billing, About Us
     } else if (role == AppConstants.rolePharmacist) {
-      return [all[0], all[1], all[2], all[3]];
+      return [all[0], all[1], all[2], all[3], all[6]];
     }
     return all; // Admin sees all
   }
@@ -257,6 +275,9 @@ class AppShell extends ConsumerWidget {
 
     if (title == 'Dashboard') {
       return const DashboardScreen();
+    }
+    if (title == 'POS Billing') {
+      return const PosScreen();
     }
     if (title == 'Inventory Master') {
       return const MedicineListScreen();
@@ -269,6 +290,9 @@ class AppShell extends ConsumerWidget {
     }
     if (title == 'Settings & Backup') {
       return const SettingsScreen();
+    }
+    if (title == 'About Us') {
+      return const AboutScreen();
     }
 
     return Center(
@@ -294,6 +318,68 @@ class AppShell extends ConsumerWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildOfflineTopBanner(BuildContext context, WidgetRef ref, NetworkState networkState) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFB91C1C), // Rich warning crimson red
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.2),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.wifi_off_rounded, color: Colors.white, size: 18),
+          const SizedBox(width: 10),
+          const Expanded(
+            child: Text(
+              'NO INTERNET CONNECTION — You are currently offline. Local billing & inventory operations remain fully functional, but Cloud Backup is paused.',
+              style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+            ),
+          ),
+          const SizedBox(width: 12),
+          InkWell(
+            onTap: () {
+              ref.read(networkNotifierProvider.notifier).checkConnection();
+            },
+            borderRadius: BorderRadius.circular(4),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.4)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (networkState.isChecking)
+                    const SizedBox(
+                      width: 10,
+                      height: 10,
+                      child: CircularProgressIndicator(strokeWidth: 1.5, color: Colors.white),
+                    )
+                  else
+                    const Icon(Icons.refresh, size: 12, color: Colors.white),
+                  const SizedBox(width: 4),
+                  Text(
+                    networkState.isChecking ? 'Checking...' : 'Retry',
+                    style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

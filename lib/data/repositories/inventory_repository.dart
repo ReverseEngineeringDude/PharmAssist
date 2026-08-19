@@ -8,6 +8,7 @@ class MedicineWithStock {
   final int batchCount;
   final bool hasNearExpiry;
   final bool hasExpired;
+  final List<Batch> batches;
 
   MedicineWithStock({
     required this.medicine,
@@ -15,6 +16,7 @@ class MedicineWithStock {
     required this.batchCount,
     this.hasNearExpiry = false,
     this.hasExpired = false,
+    this.batches = const [],
   });
 }
 
@@ -111,9 +113,55 @@ class InventoryRepository {
           batchCount: batches.length,
           hasNearExpiry: hasNearExpiry,
           hasExpired: hasExpired,
+          batches: batches,
         );
       }).toList();
     });
+  }
+
+  Future<List<MedicineWithStock>> getMedicinesWithStock() async {
+    final query = _db.select(_db.medicines).join([
+      leftOuterJoin(_db.batches, _db.batches.medicineId.equalsExp(_db.medicines.id)),
+    ]);
+
+    final rows = await query.get();
+    final Map<int, List<Batch>> medicineBatchesMap = {};
+    final Map<int, Medicine> medicineMap = {};
+
+    final now = DateTime.now();
+    final nearExpiryDate = now.add(const Duration(days: 90));
+
+    for (final row in rows) {
+      final medicine = row.readTable(_db.medicines);
+      final batch = row.readTableOrNull(_db.batches);
+
+      medicineMap[medicine.id] = medicine;
+      if (!medicineBatchesMap.containsKey(medicine.id)) {
+        medicineBatchesMap[medicine.id] = [];
+      }
+      if (batch != null) {
+        medicineBatchesMap[medicine.id]!.add(batch);
+      }
+    }
+
+    return medicineMap.values.map((med) {
+      final batches = medicineBatchesMap[med.id] ?? [];
+      final totalQty = batches.fold<int>(0, (sum, b) => sum + b.quantity);
+      final hasExpired = batches.any((b) => b.quantity > 0 && b.expiryDate.isBefore(now));
+      final hasNearExpiry = batches.any((b) =>
+          b.quantity > 0 &&
+          b.expiryDate.isAfter(now) &&
+          b.expiryDate.isBefore(nearExpiryDate));
+
+      return MedicineWithStock(
+        medicine: med,
+        totalQuantity: totalQty,
+        batchCount: batches.length,
+        hasNearExpiry: hasNearExpiry,
+        hasExpired: hasExpired,
+        batches: batches,
+      );
+    }).toList();
   }
 
   Future<int> addMedicine(MedicinesCompanion companion) async {
@@ -230,6 +278,14 @@ class InventoryRepository {
   }
 
   // --- BATCH MANAGEMENT ---
+
+  Stream<List<Batch>> watchAllBatches() {
+    return _db.select(_db.batches).watch();
+  }
+
+  Future<List<Batch>> getAllBatches() async {
+    return await _db.select(_db.batches).get();
+  }
 
   Stream<List<Batch>> watchBatchesForMedicine(int medicineId) {
     return (_db.select(_db.batches)
@@ -470,5 +526,198 @@ class InventoryRepository {
         );
       }
     }
+  }
+
+  int _parseInt(dynamic val, [int defaultValue = 0]) {
+    if (val == null) return defaultValue;
+    if (val is int) return val;
+    if (val is num) return val.toInt();
+    if (val is String) {
+      return int.tryParse(val) ?? double.tryParse(val)?.toInt() ?? defaultValue;
+    }
+    return defaultValue;
+  }
+
+  double _parseDouble(dynamic val, [double defaultValue = 0.0]) {
+    if (val == null) return defaultValue;
+    if (val is double) return val;
+    if (val is num) return val.toDouble();
+    if (val is String) {
+      return double.tryParse(val) ?? defaultValue;
+    }
+    return defaultValue;
+  }
+
+  /// Restore/Upsert stock records fetched from Cloud Firestore into local SQLite database
+  Future<Map<String, int>> restoreStocksFromFirestore(List<Map<String, dynamic>> firestoreItems) async {
+    int restoredMeds = 0;
+    int restoredBatches = 0;
+
+    // Deduplicate items by normalized medicine name, keeping the latest synced record
+    final Map<String, Map<String, dynamic>> deduplicated = {};
+    for (final item in firestoreItems) {
+      final name = item['name']?.toString().trim();
+      if (name == null || name.isEmpty) continue;
+      final key = name.toLowerCase();
+
+      if (!deduplicated.containsKey(key)) {
+        deduplicated[key] = item;
+      } else {
+        final existingTime = DateTime.tryParse(deduplicated[key]!['lastSyncedAt']?.toString() ?? '');
+        final currentTime = DateTime.tryParse(item['lastSyncedAt']?.toString() ?? '');
+        if (currentTime != null && (existingTime == null || currentTime.isAfter(existingTime))) {
+          deduplicated[key] = item;
+        }
+      }
+    }
+
+    await _db.transaction(() async {
+      for (final item in deduplicated.values) {
+        final String name = item['name']?.toString() ?? 'Unnamed Medicine';
+        final String? genericName = item['genericName']?.toString();
+        final String category = item['category']?.toString() ?? 'General';
+        final String unit = item['unit']?.toString() ?? 'Strip';
+        final int reorderLevel = _parseInt(item['reorderLevel'], 10);
+        final double gstRate = _parseDouble(item['gstRate'], 12.0);
+        final String hsnCode = item['hsnCode']?.toString() ?? '';
+        final String scheduleFlag = item['scheduleFlag']?.toString() ?? 'NONE';
+        final int totalQuantity = _parseInt(item['totalQuantity'], 0);
+
+        // Check if medicine exists by name (case-insensitive)
+        final existingMeds = await (_db.select(_db.medicines)
+              ..where((m) => m.name.equals(name)))
+            .get();
+
+        int medId;
+        if (existingMeds.isNotEmpty) {
+          medId = existingMeds.first.id;
+          await (_db.update(_db.medicines)..where((m) => m.id.equals(medId))).write(
+            MedicinesCompanion(
+              genericName: Value(genericName),
+              category: Value(category),
+              unit: Value(unit),
+              reorderLevel: Value(reorderLevel),
+              gstRate: Value(gstRate),
+              hsnCode: Value(hsnCode),
+              scheduleFlag: Value(scheduleFlag),
+            ),
+          );
+        } else {
+          medId = await _db.into(_db.medicines).insert(
+            MedicinesCompanion.insert(
+              name: name,
+              genericName: Value(genericName),
+              category: Value(category),
+              unit: Value(unit),
+              reorderLevel: Value(reorderLevel),
+              gstRate: Value(gstRate),
+              hsnCode: Value(hsnCode),
+              scheduleFlag: Value(scheduleFlag),
+            ),
+          );
+        }
+        restoredMeds++;
+
+        // Restore batches list
+        final List<dynamic> batchesList = item['batches'] as List<dynamic>? ?? [];
+        int validBatchesCount = 0;
+
+        // Clear existing local batches for medId to prevent duplicate batch stock accumulation
+        await (_db.delete(_db.batches)..where((b) => b.medicineId.equals(medId))).go();
+
+        for (final bObj in batchesList) {
+          if (bObj is Map) {
+            final batchNo = bObj['batchNo']?.toString();
+            if (batchNo == null || batchNo.trim().isEmpty) continue;
+
+            final double purchasePrice = _parseDouble(bObj['purchasePrice']);
+            final double mrp = _parseDouble(bObj['mrp']);
+            final int quantity = _parseInt(bObj['quantity']);
+
+            DateTime expiryDate;
+            if (bObj['expiryDate'] is DateTime) {
+              expiryDate = bObj['expiryDate'] as DateTime;
+            } else if (bObj['expiryDate'] != null) {
+              expiryDate = DateTime.tryParse(bObj['expiryDate'].toString()) ??
+                  DateTime.now().add(const Duration(days: 365));
+            } else {
+              expiryDate = DateTime.now().add(const Duration(days: 365));
+            }
+
+            DateTime? mfgDate;
+            if (bObj['mfgDate'] is DateTime) {
+              mfgDate = bObj['mfgDate'] as DateTime;
+            } else if (bObj['mfgDate'] != null) {
+              mfgDate = DateTime.tryParse(bObj['mfgDate'].toString());
+            }
+
+            // Check if batch exists for this medicine and batchNo
+            final existingBatches = await (_db.select(_db.batches)
+                  ..where((b) => b.medicineId.equals(medId) & b.batchNo.equals(batchNo)))
+                .get();
+
+            if (existingBatches.isNotEmpty) {
+              final bId = existingBatches.first.id;
+              await (_db.update(_db.batches)..where((b) => b.id.equals(bId))).write(
+                BatchesCompanion(
+                  purchasePrice: Value(purchasePrice),
+                  mrp: Value(mrp),
+                  quantity: Value(quantity),
+                  expiryDate: Value(expiryDate),
+                  mfgDate: Value(mfgDate),
+                ),
+              );
+            } else {
+              await _db.into(_db.batches).insert(
+                BatchesCompanion.insert(
+                  medicineId: medId,
+                  batchNo: batchNo,
+                  purchasePrice: purchasePrice,
+                  mrp: mrp,
+                  quantity: Value(quantity),
+                  expiryDate: expiryDate,
+                  mfgDate: Value(mfgDate),
+                ),
+              );
+            }
+            restoredBatches++;
+            validBatchesCount++;
+          }
+        }
+
+        // Fallback: If no batch was present but totalQuantity > 0, create default batch
+        if (validBatchesCount == 0 && totalQuantity > 0) {
+          final defaultBatchNo = 'RESTORED-${DateTime.now().millisecondsSinceEpoch % 10000}';
+          final existingBatches = await (_db.select(_db.batches)
+                ..where((b) => b.medicineId.equals(medId)))
+              .get();
+
+          if (existingBatches.isEmpty) {
+            await _db.into(_db.batches).insert(
+              BatchesCompanion.insert(
+                medicineId: medId,
+                batchNo: defaultBatchNo,
+                purchasePrice: 0.0,
+                mrp: 0.0,
+                quantity: Value(totalQuantity),
+                expiryDate: DateTime.now().add(const Duration(days: 365)),
+              ),
+            );
+            restoredBatches++;
+          }
+        }
+      }
+
+      await _db.into(_db.activityLogs).insert(
+        ActivityLogsCompanion.insert(
+          userId: 1,
+          action: 'RESTORE_CLOUD_BACKUP',
+          entity: 'Inventory',
+          entityId: Value('CLOUD_${DateTime.now().millisecondsSinceEpoch}'),
+        ),
+      );
+    });
+
+    return {'medicines': restoredMeds, 'batches': restoredBatches};
   }
 }

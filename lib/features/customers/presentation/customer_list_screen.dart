@@ -5,11 +5,34 @@ import 'package:pharmassist/features/customers/presentation/credit_payment_dialo
 import 'package:pharmassist/features/customers/presentation/customer_form_dialog.dart';
 import 'package:pharmassist/features/customers/providers/customer_providers.dart';
 
-class CustomerListScreen extends ConsumerWidget {
+class CustomerListScreen extends ConsumerStatefulWidget {
   const CustomerListScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<CustomerListScreen> createState() => _CustomerListScreenState();
+}
+
+class _CustomerListScreenState extends ConsumerState<CustomerListScreen> {
+  final FocusNode _searchFocusNode = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _searchFocusNode.requestFocus();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchFocusNode.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final customersAsync = ref.watch(customersStreamProvider);
     final filteredCustomers = ref.watch(filteredCustomersProvider);
@@ -129,6 +152,8 @@ class CustomerListScreen extends ConsumerWidget {
                       child: SizedBox(
                         height: 38,
                         child: TextField(
+                          focusNode: _searchFocusNode,
+                          autofocus: true,
                           onChanged: (val) {
                             ref.read(customerSearchQueryProvider.notifier).state = val;
                           },

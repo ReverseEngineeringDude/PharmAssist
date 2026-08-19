@@ -2,16 +2,41 @@ import 'package:data_table_2/data_table_2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:pharmassist/data/repositories/purchase_repository.dart';
+import 'package:pharmassist/features/inventory/providers/inventory_providers.dart';
 import 'package:pharmassist/features/purchases/presentation/purchase_details_dialog.dart';
 import 'package:pharmassist/features/purchases/presentation/purchase_entry_dialog.dart';
 import 'package:pharmassist/features/purchases/presentation/supplier_management_dialog.dart';
 import 'package:pharmassist/features/purchases/providers/purchase_providers.dart';
 
-class PurchaseListScreen extends ConsumerWidget {
+class PurchaseListScreen extends ConsumerStatefulWidget {
   const PurchaseListScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PurchaseListScreen> createState() => _PurchaseListScreenState();
+}
+
+class _PurchaseListScreenState extends ConsumerState<PurchaseListScreen> {
+  final FocusNode _searchFocusNode = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _searchFocusNode.requestFocus();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchFocusNode.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final invoicesAsync = ref.watch(purchaseInvoicesProvider);
     final filteredInvoices = ref.watch(filteredPurchaseInvoicesProvider);
@@ -154,6 +179,8 @@ class PurchaseListScreen extends ConsumerWidget {
                       child: SizedBox(
                         height: 38,
                         child: TextField(
+                          focusNode: _searchFocusNode,
+                          autofocus: true,
                           onChanged: (val) {
                             ref.read(purchaseSearchQueryProvider.notifier).state = val;
                           },
@@ -265,20 +292,33 @@ class PurchaseListScreen extends ConsumerWidget {
                               FittedBox(
                                 fit: BoxFit.scaleDown,
                                 alignment: Alignment.centerLeft,
-                                child: OutlinedButton.icon(
-                                  onPressed: () {
-                                    showDialog(
-                                      context: context,
-                                      builder: (_) => PurchaseDetailsDialog(invoiceDetails: item),
-                                    );
-                                  },
-                                  icon: const Icon(Icons.visibility_outlined, size: 14),
-                                  label: const Text('View Details', style: TextStyle(fontSize: 11)),
-                                  style: OutlinedButton.styleFrom(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                    minimumSize: Size.zero,
-                                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                  ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    OutlinedButton.icon(
+                                      onPressed: () {
+                                        showDialog(
+                                          context: context,
+                                          builder: (_) => PurchaseDetailsDialog(invoiceDetails: item),
+                                        );
+                                      },
+                                      icon: const Icon(Icons.visibility_outlined, size: 14),
+                                      label: const Text('View', style: TextStyle(fontSize: 11)),
+                                      style: OutlinedButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                        minimumSize: Size.zero,
+                                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    IconButton(
+                                      icon: const Icon(Icons.delete_outline, size: 18, color: Colors.redAccent),
+                                      tooltip: 'Delete Purchase Invoice',
+                                      constraints: const BoxConstraints(),
+                                      padding: const EdgeInsets.all(4),
+                                      onPressed: () => _deleteInvoice(context, ref, item),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ),
@@ -296,6 +336,67 @@ class PurchaseListScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _deleteInvoice(BuildContext context, WidgetRef ref, PurchaseInvoiceWithDetails item) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.red, size: 28),
+            SizedBox(width: 10),
+            Text('Delete Purchase Invoice?'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Are you sure you want to delete Purchase Invoice #${item.invoice.invoiceNo} from ${item.supplier.name}?',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'This action will remove the inward purchase record and its associated batch stock items if not yet sold.',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+            icon: const Icon(Icons.delete_outline, size: 16),
+            label: const Text('Delete Invoice'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      final repo = ref.read(purchaseRepositoryProvider);
+      final success = await repo.deletePurchaseInvoice(item.invoice.id);
+      if (context.mounted) {
+        if (success) {
+          ref.invalidate(purchaseInvoicesProvider);
+          ref.invalidate(medicinesWithStockProvider);
+          ref.invalidate(allBatchesStreamProvider);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Purchase Invoice #${item.invoice.invoiceNo} deleted successfully.')),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to delete purchase invoice.')),
+          );
+        }
+      }
+    }
   }
 
   Widget _buildStatCard({

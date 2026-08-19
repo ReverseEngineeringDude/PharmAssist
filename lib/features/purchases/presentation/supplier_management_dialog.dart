@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pharmassist/data/local/app_database.dart';
+import 'package:pharmassist/data/services/firestore_backup_service.dart';
+import 'package:pharmassist/features/inventory/providers/inventory_providers.dart';
 import 'package:pharmassist/features/purchases/providers/purchase_providers.dart';
 import 'package:drift/drift.dart' as drift;
 
@@ -54,6 +56,8 @@ class _SupplierManagementDialogState extends ConsumerState<SupplierManagementDia
       _phoneController.clear();
       _addressController.clear();
 
+      _triggerCloudSync();
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Supplier added successfully!')),
@@ -67,6 +71,92 @@ class _SupplierManagementDialogState extends ConsumerState<SupplierManagementDia
       }
     } finally {
       if (mounted) setState(() => _isAdding = false);
+    }
+  }
+
+  void _triggerCloudSync() {
+    final backupState = ref.read(firestoreBackupNotifierProvider);
+    if (backupState.isConfigured) {
+      final inventoryRepo = ref.read(inventoryRepositoryProvider);
+      final purchaseRepo = ref.read(purchaseRepositoryProvider);
+      inventoryRepo.getMedicinesWithStock().then((medicines) {
+        inventoryRepo.getAllBatches().then((batches) {
+          ref.read(firestoreBackupNotifierProvider.notifier).backupStocks(
+            medicines: medicines,
+            allBatches: batches,
+            purchaseRepo: purchaseRepo,
+          );
+        });
+      });
+    }
+  }
+
+  Future<void> _deleteSupplier(Supplier sup) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.red, size: 28),
+            SizedBox(width: 10),
+            Text('Delete Distributor?'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Are you sure you want to delete distributor "${sup.name}"?',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'This will remove the distributor record and all associated inward invoices from the database.',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+            icon: const Icon(Icons.delete_outline, size: 16),
+            label: const Text('Delete Distributor'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        final repo = ref.read(purchaseRepositoryProvider);
+        final success = await repo.deleteSupplier(sup.id);
+        if (mounted) {
+          if (success) {
+            ref.invalidate(suppliersProvider);
+            ref.invalidate(purchaseInvoicesProvider);
+            _triggerCloudSync();
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Distributor "${sup.name}" deleted from database.')),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Failed to delete distributor.')),
+            );
+          }
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error deleting distributor: $e')),
+          );
+        }
+      }
     }
   }
 
@@ -224,21 +314,34 @@ class _SupplierManagementDialogState extends ConsumerState<SupplierManagementDia
                                   'GSTIN: ${sup.gstin ?? '—'} | Phone: ${sup.phone ?? '—'}\nAddress: ${sup.address ?? '—'}',
                                   style: const TextStyle(fontSize: 11),
                                 ),
-                                trailing: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Text(
-                                      'Balance Due',
-                                      style: TextStyle(fontSize: 10, color: theme.colorScheme.onSurface.withValues(alpha: 0.5)),
+                                    Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      crossAxisAlignment: CrossAxisAlignment.end,
+                                      children: [
+                                        Text(
+                                          'Balance Due',
+                                          style: TextStyle(fontSize: 10, color: theme.colorScheme.onSurface.withValues(alpha: 0.5)),
+                                        ),
+                                        Text(
+                                          '₹${sup.balanceDue.toStringAsFixed(2)}',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 12,
+                                            color: sup.balanceDue > 0 ? Colors.red : Colors.green,
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                    Text(
-                                      '₹${sup.balanceDue.toStringAsFixed(2)}',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 12,
-                                        color: sup.balanceDue > 0 ? Colors.red : Colors.green,
-                                      ),
+                                    const SizedBox(width: 8),
+                                    IconButton(
+                                      icon: const Icon(Icons.delete_outline, size: 18, color: Colors.redAccent),
+                                      tooltip: 'Delete Distributor',
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(),
+                                      onPressed: () => _deleteSupplier(sup),
                                     ),
                                   ],
                                 ),

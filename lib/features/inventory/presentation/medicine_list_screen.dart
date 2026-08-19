@@ -1,7 +1,9 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pharmassist/core/constants/app_constants.dart';
 import 'package:pharmassist/data/local/app_database.dart';
+import 'package:pharmassist/data/repositories/inventory_repository.dart';
 import 'package:pharmassist/features/inventory/presentation/batch_management_dialog.dart';
 import 'package:pharmassist/features/inventory/presentation/bulk_import_dialog.dart';
 import 'package:pharmassist/features/inventory/presentation/medicine_form_dialog.dart';
@@ -9,17 +11,51 @@ import 'package:pharmassist/features/inventory/presentation/quick_dispense_dialo
 import 'package:pharmassist/features/inventory/presentation/stock_adjustment_dialog.dart';
 import 'package:pharmassist/features/inventory/providers/inventory_providers.dart';
 
-class MedicineListScreen extends ConsumerWidget {
+class MedicineListScreen extends ConsumerStatefulWidget {
   const MedicineListScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MedicineListScreen> createState() => _MedicineListScreenState();
+}
+
+class _MedicineListScreenState extends ConsumerState<MedicineListScreen> {
+  final FocusNode _searchFocusNode = FocusNode();
+  int _currentPage = 1;
+  int _rowsPerPage = 10;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _searchFocusNode.requestFocus();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchFocusNode.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final medicinesAsync = ref.watch(medicinesWithStockProvider);
     final filteredList = ref.watch(filteredMedicinesProvider);
+    final allBatches = ref.watch(allBatchesStreamProvider).value ?? [];
 
     final searchQuery = ref.watch(medicineSearchQueryProvider);
     final selectedSchedule = ref.watch(selectedScheduleFilterProvider);
+
+    // Calculate Pagination
+    final totalItems = filteredList.length;
+    final totalPages = (totalItems / _rowsPerPage).ceil().clamp(1, 99999);
+    final effectivePage = _currentPage.clamp(1, totalPages);
+    final startIndex = (effectivePage - 1) * _rowsPerPage;
+    final endIndex = math.min(startIndex + _rowsPerPage, totalItems);
+    final paginatedList = totalItems > 0 ? filteredList.sublist(startIndex, endIndex) : <MedicineWithStock>[];
 
     return Scaffold(
       body: Container(
@@ -148,8 +184,11 @@ class MedicineListScreen extends ConsumerWidget {
                       child: SizedBox(
                         height: 38,
                         child: TextField(
+                          focusNode: _searchFocusNode,
+                          autofocus: true,
                           onChanged: (val) {
                             ref.read(medicineSearchQueryProvider.notifier).state = val;
+                            setState(() => _currentPage = 1);
                           },
                           decoration: InputDecoration(
                             hintText: 'Search by Brand Name, Salt, Manufacturer, HSN...',
@@ -159,6 +198,7 @@ class MedicineListScreen extends ConsumerWidget {
                                     icon: const Icon(Icons.clear, size: 16),
                                     onPressed: () {
                                       ref.read(medicineSearchQueryProvider.notifier).state = '';
+                                      setState(() => _currentPage = 1);
                                     },
                                   )
                                 : null,
@@ -195,6 +235,7 @@ class MedicineListScreen extends ConsumerWidget {
                             ],
                             onChanged: (val) {
                               ref.read(selectedScheduleFilterProvider.notifier).state = val;
+                              setState(() => _currentPage = 1);
                             },
                           ),
                         ),
@@ -207,318 +248,559 @@ class MedicineListScreen extends ConsumerWidget {
 
             const SizedBox(height: 12),
 
-            // ListView Area
+            // PREMIUM DARK-MODE ERP TABLE CONTAINER
             Expanded(
               child: medicinesAsync.when(
                 data: (_) {
                   if (filteredList.isEmpty) {
-                    return Card(
-                      elevation: 0,
-                      color: theme.colorScheme.surface,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        side: BorderSide(color: theme.dividerColor),
+                    return Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0F172A), // Dark Navy
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFF334155)),
                       ),
                       child: Center(
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.search_off_rounded, size: 48, color: theme.disabledColor),
+                            Icon(Icons.search_off_rounded, size: 48, color: const Color(0xFF64748B)),
                             const SizedBox(height: 12),
-                            const Text('No medicines found matching your filter criteria.'),
+                            const Text(
+                              'No medicines found matching your filter criteria.',
+                              style: TextStyle(color: Color(0xFF94A3B8)),
+                            ),
                           ],
                         ),
                       ),
                     );
                   }
 
-                  return ListView.separated(
-                    itemCount: filteredList.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 8),
-                    itemBuilder: (context, index) {
-                      final item = filteredList[index];
-                      final med = item.medicine;
-                      final isLowStock = item.totalQuantity <= med.reorderLevel;
-                      final isOutOfStock = item.totalQuantity == 0;
-
-                      return Card(
-                        elevation: 0,
-                        margin: EdgeInsets.zero,
-                        color: theme.colorScheme.surface,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          side: BorderSide(
-                            color: isOutOfStock
-                                ? Colors.red.withValues(alpha: 0.5)
-                                : (isLowStock ? Colors.orange.withValues(alpha: 0.5) : theme.dividerColor),
-                            width: (isOutOfStock || isLowStock) ? 1.5 : 1,
+                  return Container(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0F172A), // Dark Navy Container
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFF334155), width: 1.5),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.3),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        // ERP TABLE HEADER
+                        Container(
+                          height: 44,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFF1E293B), // Dark Navy Header
+                            borderRadius: BorderRadius.vertical(top: Radius.circular(10)),
+                            border: Border(
+                              bottom: BorderSide(color: Color(0xFF334155), width: 1.5),
+                            ),
+                          ),
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: SizedBox(
+                              width: 1140,
+                              child: Row(
+                                children: [
+                                  _buildHeaderCell('MEDICINE DETAILS', width: 450),
+                                  _buildHeaderCell('CATEGORY', width: 150),
+                                  _buildHeaderCell('STOCK / BATCH', width: 150),
+                                  _buildHeaderCell('MRP', width: 120),
+                                  _buildHeaderCell('EXPIRY', width: 130),
+                                  _buildHeaderCell('STATUS', width: 140),
+                                ],
+                              ),
+                            ),
                           ),
                         ),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+
+                        // DENSE TABLE ROWS (WITH HORIZONTAL & VERTICAL SCROLL)
+                        Expanded(
+                          child: SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: SizedBox(
+                              width: 1140,
+                              child: ListView.builder(
+                                itemCount: paginatedList.length,
+                                itemBuilder: (context, index) {
+                                  final item = paginatedList[index];
+                                  final isAltRow = index % 2 == 1;
+                                  final summary = _getBatchSummary(item, allBatches);
+
+                                  return _buildTableRow(
+                                    context: context,
+                                    item: item,
+                                    summary: summary,
+                                    isAltRow: isAltRow,
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        // PAGINATION FOOTER
+                        Container(
+                          height: 48,
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          decoration: const BoxDecoration(
+                            color: Color(0xFF1E293B),
+                            borderRadius: BorderRadius.vertical(bottom: Radius.circular(10)),
+                            border: Border(
+                              top: BorderSide(color: Color(0xFF334155), width: 1.5),
+                            ),
+                          ),
                           child: Row(
                             children: [
-                              // Icon & Brand Details
-                              CircleAvatar(
-                                radius: 18,
-                                backgroundColor: (isOutOfStock
-                                        ? Colors.red
-                                        : (isLowStock ? Colors.orange : theme.colorScheme.primary))
-                                    .withValues(alpha: 0.12),
-                                child: Icon(
-                                  Icons.medication_rounded,
-                                  size: 20,
-                                  color: isOutOfStock
-                                      ? Colors.red
-                                      : (isLowStock ? Colors.orange : theme.colorScheme.primary),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-
-                              // Name & Metadata Column
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        Text(
-                                          med.name,
-                                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        _buildScheduleBadge(med.scheduleFlag),
-                                        const SizedBox(width: 6),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                                          decoration: BoxDecoration(
-                                            color: theme.colorScheme.onSurface.withValues(alpha: 0.06),
-                                            borderRadius: BorderRadius.circular(4),
-                                          ),
-                                          child: Text(
-                                            'GST ${med.gstRate}%',
-                                            style: TextStyle(fontSize: 10, color: theme.colorScheme.onSurface.withValues(alpha: 0.7)),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 3),
-                                    Row(
-                                      children: [
-                                        if (med.genericName != null && med.genericName!.isNotEmpty) ...[
-                                          Text(
-                                            med.genericName!,
-                                            style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurface.withValues(alpha: 0.7), fontWeight: FontWeight.w500),
-                                          ),
-                                          Text(' • ', style: TextStyle(color: theme.disabledColor)),
-                                        ],
-                                        Text(
-                                          'Cat: ${med.category ?? "General"}',
-                                          style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurface.withValues(alpha: 0.6)),
-                                        ),
-                                        if (med.hsnCode != null && med.hsnCode!.isNotEmpty) ...[
-                                          Text(' • ', style: TextStyle(color: theme.disabledColor)),
-                                          Text(
-                                            'HSN: ${med.hsnCode}',
-                                            style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurface.withValues(alpha: 0.5), fontFamily: 'monospace'),
-                                          ),
-                                        ],
-                                        if (med.manufacturer != null && med.manufacturer!.isNotEmpty) ...[
-                                          Text(' • ', style: TextStyle(color: theme.disabledColor)),
-                                          Text(
-                                            med.manufacturer!,
-                                            style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurface.withValues(alpha: 0.5)),
-                                          ),
-                                        ],
-                                      ],
-                                    ),
-                                  ],
-                                ),
+                              // Showing items range
+                              Text(
+                                totalItems > 0
+                                    ? 'Showing ${startIndex + 1} to $endIndex of $totalItems items'
+                                    : 'Showing 0 items',
+                                style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8), fontWeight: FontWeight.w500),
                               ),
 
-                              const SizedBox(width: 12),
+                              const Spacer(),
 
-                              // PROMINENT CLICKABLE STOCK BADGE
-                              Tooltip(
-                                message: 'Click to Quick Dispense / Reduce Stock (Buyed someone)',
-                                child: InkWell(
-                                  onTap: () {
-                                    showDialog(
-                                      context: context,
-                                      builder: (_) => QuickDispenseDialog(item: item),
-                                    );
-                                  },
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                    decoration: BoxDecoration(
-                                      color: (isOutOfStock
-                                              ? Colors.red
-                                              : (isLowStock ? Colors.orange : Colors.green))
-                                          .withValues(alpha: 0.12),
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(
-                                        color: (isOutOfStock
-                                                ? Colors.red
-                                                : (isLowStock ? Colors.orange : Colors.green))
-                                            .withValues(alpha: 0.4),
-                                        width: 1.5,
-                                      ),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Column(
-                                          mainAxisAlignment: MainAxisAlignment.center,
-                                          crossAxisAlignment: CrossAxisAlignment.end,
-                                          children: [
-                                            Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                Text(
-                                                  '${item.totalQuantity}',
-                                                  style: TextStyle(
-                                                    fontWeight: FontWeight.w900,
-                                                    fontSize: 17,
-                                                    color: isOutOfStock
-                                                        ? Colors.red
-                                                        : (isLowStock ? Colors.orange : Colors.green),
-                                                  ),
-                                                ),
-                                                const SizedBox(width: 3),
-                                                Text(
-                                                  med.unit,
-                                                  style: TextStyle(
-                                                    fontSize: 11,
-                                                    fontWeight: FontWeight.bold,
-                                                    color: isOutOfStock
-                                                        ? Colors.red
-                                                        : (isLowStock ? Colors.orange : Colors.green),
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                            Text(
-                                              '${item.batchCount} batch${item.batchCount == 1 ? '' : 'es'}',
-                                              style: TextStyle(fontSize: 10, color: theme.colorScheme.onSurface.withValues(alpha: 0.5)),
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Icon(
-                                          Icons.remove_circle_outline_rounded,
-                                          size: 18,
-                                          color: isOutOfStock
-                                              ? Colors.red
-                                              : (isLowStock ? Colors.orange : Colors.green),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-
-                              const SizedBox(width: 12),
-
-                              // Actions Buttons
+                              // Rows per page dropdown selector
                               Row(
-                                mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  // Quick Sell / Dispense Button
-                                  ElevatedButton.icon(
-                                    onPressed: () {
-                                      showDialog(
-                                        context: context,
-                                        builder: (_) => QuickDispenseDialog(item: item),
-                                      );
-                                    },
-                                    icon: const Icon(Icons.remove, size: 14),
-                                    label: const Text('- Quick Sell', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.orange,
-                                      foregroundColor: Colors.white,
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                                      minimumSize: Size.zero,
-                                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  const Text('Rows per page:', style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8))),
+                                  const SizedBox(width: 8),
+                                  DropdownButtonHideUnderline(
+                                    child: DropdownButton<int>(
+                                      value: _rowsPerPage,
+                                      dropdownColor: const Color(0xFF1E293B),
+                                      isDense: true,
+                                      style: const TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.bold),
+                                      items: const [
+                                        DropdownMenuItem(value: 10, child: Text('10')),
+                                        DropdownMenuItem(value: 25, child: Text('25')),
+                                        DropdownMenuItem(value: 50, child: Text('50')),
+                                      ],
+                                      onChanged: (val) {
+                                        if (val != null) {
+                                          setState(() {
+                                            _rowsPerPage = val;
+                                            _currentPage = 1;
+                                          });
+                                        }
+                                      },
                                     ),
                                   ),
-                                  const SizedBox(width: 4),
+                                ],
+                              ),
 
-                                  // Batches Button
-                                  OutlinedButton.icon(
-                                    onPressed: () {
-                                      showDialog(
-                                        context: context,
-                                        builder: (_) => BatchManagementDialog(medicine: med),
-                                      );
-                                    },
-                                    icon: const Icon(Icons.qr_code, size: 13),
-                                    label: const Text('Batches', style: TextStyle(fontSize: 11)),
-                                    style: OutlinedButton.styleFrom(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-                                      minimumSize: Size.zero,
-                                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 4),
+                              const SizedBox(width: 24),
 
-                                  // Stock Adjust Button
-                                  OutlinedButton.icon(
-                                    onPressed: () {
-                                      showDialog(
-                                        context: context,
-                                        builder: (_) => StockAdjustmentDialog(medicine: med),
-                                      );
-                                    },
-                                    icon: const Icon(Icons.tune, size: 13),
-                                    label: const Text('Adjust', style: TextStyle(fontSize: 11)),
-                                    style: OutlinedButton.styleFrom(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-                                      minimumSize: Size.zero,
-                                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 4),
-
-                                  // Edit Button
+                              // Page Navigation
+                              Row(
+                                children: [
                                   IconButton(
-                                    icon: const Icon(Icons.edit_outlined, size: 16),
-                                    tooltip: 'Edit Details',
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                                    onPressed: () {
-                                      showDialog(
-                                        context: context,
-                                        builder: (_) => MedicineFormDialog(medicine: med),
-                                      );
-                                    },
+                                    icon: const Icon(Icons.chevron_left, size: 20),
+                                    color: Colors.white,
+                                    disabledColor: const Color(0xFF64748B),
+                                    onPressed: effectivePage > 1
+                                        ? () => setState(() => _currentPage = effectivePage - 1)
+                                        : null,
                                   ),
-
-                                  // Delete Button
+                                  Text(
+                                    'Page $effectivePage of $totalPages',
+                                    style: const TextStyle(fontSize: 12, color: Colors.white, fontWeight: FontWeight.bold),
+                                  ),
                                   IconButton(
-                                    icon: const Icon(Icons.delete_outline, size: 16, color: Colors.red),
-                                    tooltip: 'Delete Product',
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                                    onPressed: () => _confirmDelete(context, ref, med),
+                                    icon: const Icon(Icons.chevron_right, size: 20),
+                                    color: Colors.white,
+                                    disabledColor: const Color(0xFF64748B),
+                                    onPressed: effectivePage < totalPages
+                                        ? () => setState(() => _currentPage = effectivePage + 1)
+                                        : null,
                                   ),
                                 ],
                               ),
                             ],
                           ),
                         ),
-                      );
-                    },
+                      ],
+                    ),
                   );
                 },
                 loading: () => const Center(child: CircularProgressIndicator()),
-                error: (err, _) => Center(child: Text('Error loading inventory: $err')),
+                error: (err, _) => Center(child: Text('Error loading inventory: $err', style: const TextStyle(color: Colors.red))),
               ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  // HEADER CELL HELPER
+  Widget _buildHeaderCell(String title, {required double width, Alignment alignment = Alignment.centerLeft}) {
+    return SizedBox(
+      width: width,
+      child: Container(
+        alignment: alignment,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: Text(
+          title,
+          style: const TextStyle(
+            color: Color(0xFF38BDF8), // Cyan Accent
+            fontSize: 11,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 0.8,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // DENSE TABLE ROW WITH HOVER & RIGHT CLICK
+  Widget _buildTableRow({
+    required BuildContext context,
+    required MedicineWithStock item,
+    required Map<String, String> summary,
+    required bool isAltRow,
+  }) {
+    final med = item.medicine;
+    final isLowStock = item.totalQuantity <= med.reorderLevel;
+    final isOutOfStock = item.totalQuantity == 0;
+
+    bool isHovered = false;
+
+    Offset clickPos = Offset.zero;
+
+    return StatefulBuilder(
+      builder: (context, setStateRow) {
+        return MouseRegion(
+          onEnter: (_) => setStateRow(() => isHovered = true),
+          onExit: (_) => setStateRow(() => isHovered = false),
+          child: GestureDetector(
+            onTap: () {
+              showDialog(
+                context: context,
+                builder: (_) => QuickDispenseDialog(item: item),
+              );
+            },
+            onSecondaryTapDown: (details) => clickPos = details.globalPosition,
+            onSecondaryTapUp: (details) => _showContextMenu(context, clickPos, item),
+            onLongPressStart: (details) => _showContextMenu(context, details.globalPosition, item),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              height: 56,
+              decoration: BoxDecoration(
+                color: isHovered
+                    ? const Color(0xFF1E293B) // Hover Cyan Navy
+                    : (isAltRow ? const Color(0xFF0F172A) : const Color(0xFF131C31)),
+                border: const Border(
+                  bottom: BorderSide(color: Color(0xFF1E293B), width: 1),
+                ),
+              ),
+              child: Row(
+                children: [
+                  // 1. MEDICINE DETAILS
+                  SizedBox(
+                    width: 450,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  med.name,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 13.5,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              _buildScheduleBadge(med.scheduleFlag),
+                              const SizedBox(width: 4),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.08),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  'GST ${med.gstRate}%',
+                                  style: const TextStyle(fontSize: 9, color: Color(0xFFCBD5E1), fontWeight: FontWeight.w600),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          Row(
+                            children: [
+                              if (med.genericName != null && med.genericName!.isNotEmpty) ...[
+                                Flexible(
+                                  child: Text(
+                                    med.genericName!,
+                                    style: const TextStyle(fontSize: 11, color: Color(0xFF38BDF8), fontWeight: FontWeight.w600),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                              ],
+                              if (med.hsnCode != null && med.hsnCode!.isNotEmpty) ...[
+                                Text(
+                                  'HSN: ${med.hsnCode}',
+                                  style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8), fontFamily: 'monospace'),
+                                ),
+                                const SizedBox(width: 6),
+                              ],
+                              Text(
+                                'Reorder: ${med.reorderLevel}',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: isLowStock ? Colors.orange : const Color(0xFF64748B),
+                                  fontWeight: isLowStock ? FontWeight.bold : FontWeight.normal,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // 2. CATEGORY
+                  SizedBox(
+                    width: 140,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF1E293B),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: const Color(0xFF334155)),
+                          ),
+                          child: Text(
+                            med.category ?? 'General',
+                            style: const TextStyle(fontSize: 11, color: Color(0xFFE2E8F0), fontWeight: FontWeight.w500),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // 3. STOCK / BATCH
+                  SizedBox(
+                    width: 140,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Text(
+                                '${item.totalQuantity}',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w900,
+                                  color: isOutOfStock
+                                      ? Colors.red.shade400
+                                      : (isLowStock ? Colors.orange.shade400 : const Color(0xFF10B981)),
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                med.unit,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: isOutOfStock
+                                      ? Colors.red.shade400
+                                      : (isLowStock ? Colors.orange.shade400 : const Color(0xFF10B981)),
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Text(
+                            '${item.batchCount} Active Batch${item.batchCount == 1 ? '' : 'es'}',
+                            style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // 4. MRP
+                  SizedBox(
+                    width: 110,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          summary['mrp']!,
+                          style: const TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // 5. EXPIRY
+                  SizedBox(
+                    width: 120,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Row(
+                          children: [
+                            Text(
+                              summary['expiry']!,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: item.hasExpired || item.hasNearExpiry ? FontWeight.bold : FontWeight.normal,
+                                color: item.hasExpired
+                                    ? Colors.red.shade400
+                                    : (item.hasNearExpiry ? Colors.amber.shade400 : const Color(0xFFCBD5E1)),
+                              ),
+                            ),
+                            if (item.hasExpired || item.hasNearExpiry) ...[
+                              const SizedBox(width: 4),
+                              Icon(
+                                item.hasExpired ? Icons.error_outline : Icons.access_time_rounded,
+                                size: 12,
+                                color: item.hasExpired ? Colors.red.shade400 : Colors.amber.shade400,
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // 6. STATUS
+                  SizedBox(
+                    width: 140,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: _buildStatusBadge(item),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // STATUS BADGE BUILDER
+  Widget _buildStatusBadge(MedicineWithStock item) {
+    final med = item.medicine;
+    final isOutOfStock = item.totalQuantity == 0;
+    final isLowStock = item.totalQuantity <= med.reorderLevel;
+
+    Color color = const Color(0xFF10B981); // Emerald Green
+    String text = 'In Stock';
+
+    if (isOutOfStock) {
+      color = const Color(0xFFEF4444); // Red
+      text = 'Out of Stock';
+    } else if (item.hasExpired) {
+      color = const Color(0xFFEF4444); // Red
+      text = 'Expired';
+    } else if (item.hasNearExpiry) {
+      color = const Color(0xFFF59E0B); // Amber
+      text = 'Near Expiry';
+    } else if (isLowStock) {
+      color = const Color(0xFFF97316); // Orange
+      text = 'Low Stock';
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 5),
+          Text(
+            text,
+            style: TextStyle(
+              fontSize: 10.5,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // BATCH SUMMARY HELPER (MRP RANGE & EARLIEST EXPIRY)
+  Map<String, String> _getBatchSummary(MedicineWithStock item, List<Batch> allBatches) {
+    // 1. Combine batches attached to item or from allBatches stream
+    final medBatches = item.batches.isNotEmpty
+        ? item.batches
+        : allBatches.where((b) => b.medicineId == item.medicine.id).toList();
+
+    if (medBatches.isEmpty) {
+      return {'mrp': 'N/A', 'expiry': 'N/A'};
+    }
+
+    // 2. Calculate MRP Range
+    final mrpList = medBatches.map((b) => b.mrp).toList();
+    String mrpStr = 'N/A';
+    if (mrpList.isNotEmpty) {
+      final minMrp = mrpList.reduce(math.min);
+      final maxMrp = mrpList.reduce(math.max);
+      if (minMrp == 0 && maxMrp == 0) {
+        mrpStr = '₹0.00';
+      } else if ((minMrp - maxMrp).abs() < 0.01) {
+        mrpStr = '₹${minMrp.toStringAsFixed(2)}';
+      } else {
+        mrpStr = '₹${minMrp.toStringAsFixed(0)} - ₹${maxMrp.toStringAsFixed(0)}';
+      }
+    }
+
+    // 3. Calculate Earliest Expiry
+    final expDates = medBatches.map((b) => b.expiryDate).toList()..sort();
+    String expStr = 'N/A';
+    if (expDates.isNotEmpty) {
+      final earliest = expDates.first;
+      expStr = '${earliest.month.toString().padLeft(2, '0')}/${earliest.year}';
+    }
+
+    return {'mrp': mrpStr, 'expiry': expStr};
   }
 
   Widget _buildStatCard({
@@ -572,7 +854,7 @@ class MedicineListScreen extends ConsumerWidget {
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(4),
@@ -580,30 +862,136 @@ class MedicineListScreen extends ConsumerWidget {
       ),
       child: Text(
         text,
-        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: color),
+        style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: color),
       ),
     );
+  }
+
+  void _showContextMenu(BuildContext context, Offset globalPosition, MedicineWithStock item) {
+    final med = item.medicine;
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+
+    showMenu<String>(
+      context: context,
+      position: RelativeRect.fromRect(
+        globalPosition & const Size(40, 40),
+        Offset.zero & overlay.size,
+      ),
+      color: const Color(0xFF1E293B),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: const BorderSide(color: Color(0xFF334155)),
+      ),
+      elevation: 8,
+      items: [
+        PopupMenuItem<String>(
+          value: 'dispense',
+          child: Row(
+            children: [
+              Icon(Icons.shopping_cart_checkout_outlined, size: 18, color: Theme.of(context).colorScheme.primary),
+              const SizedBox(width: 10),
+              const Text('Quick Dispense / Sell', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+            ],
+          ),
+        ),
+        const PopupMenuDivider(height: 1),
+        PopupMenuItem<String>(
+          value: 'batch',
+          child: Row(
+            children: [
+              const Icon(Icons.qr_code_2, size: 18, color: Color(0xFFA855F7)),
+              const SizedBox(width: 10),
+              Text('Manage Batches (${item.batchCount})', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
+            ],
+          ),
+        ),
+        const PopupMenuItem<String>(
+          value: 'adjust',
+          child: Row(
+            children: [
+              Icon(Icons.tune, size: 18, color: Color(0xFF14B8A6)),
+              SizedBox(width: 10),
+              Text('Stock Adjustment', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
+            ],
+          ),
+        ),
+        const PopupMenuItem<String>(
+          value: 'edit',
+          child: Row(
+            children: [
+              Icon(Icons.edit_outlined, size: 18, color: Color(0xFFF59E0B)),
+              SizedBox(width: 10),
+              Text('Edit Medicine Details', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
+            ],
+          ),
+        ),
+        const PopupMenuDivider(height: 1),
+        const PopupMenuItem<String>(
+          value: 'delete',
+          child: Row(
+            children: [
+              Icon(Icons.delete_outline, size: 18, color: Colors.red),
+              SizedBox(width: 10),
+              Text('Delete Medicine', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+            ],
+          ),
+        ),
+      ],
+    ).then((value) {
+      if (value == null || !context.mounted) return;
+      switch (value) {
+        case 'dispense':
+          showDialog(
+            context: context,
+            builder: (_) => QuickDispenseDialog(item: item),
+          );
+          break;
+        case 'batch':
+          showDialog(
+            context: context,
+            builder: (_) => BatchManagementDialog(medicine: med),
+          );
+          break;
+        case 'adjust':
+          showDialog(
+            context: context,
+            builder: (_) => StockAdjustmentDialog(medicine: med),
+          );
+          break;
+        case 'edit':
+          showDialog(
+            context: context,
+            builder: (_) => MedicineFormDialog(medicine: med),
+          );
+          break;
+        case 'delete':
+          _confirmDelete(context, ref, med);
+          break;
+      }
+    });
   }
 
   void _confirmDelete(BuildContext context, WidgetRef ref, Medicine medicine) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E293B),
         title: Row(
           children: [
             const Icon(Icons.warning_amber_rounded, color: Colors.red),
             const SizedBox(width: 8),
-            Text('Delete ${medicine.name}?'),
+            Text('Delete ${medicine.name}?', style: const TextStyle(color: Colors.white)),
           ],
         ),
         content: Text(
           'Are you sure you want to permanently delete "${medicine.name}"? '
           'This action cannot be undone and will remove all stock history and active batches.',
+          style: const TextStyle(color: Color(0xFFCBD5E1)),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel'),
+            child: const Text('Cancel', style: TextStyle(color: Color(0xFF94A3B8))),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(

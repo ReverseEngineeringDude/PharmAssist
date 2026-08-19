@@ -199,4 +199,20 @@ class AppDatabase extends _$AppDatabase {
       await customStatement('PRAGMA foreign_keys = ON;');
     },
   );
+
+  /// Completely wipes all local inventory, purchase, customer, and sales records.
+  Future<void> clearAllData() async {
+    await transaction(() async {
+      await delete(saleItems).go();
+      await delete(sales).go();
+      await delete(purchaseInvoiceItems).go();
+      await delete(purchaseInvoices).go();
+      await delete(stockAdjustments).go();
+      await delete(batches).go();
+      await delete(medicines).go();
+      await delete(suppliers).go();
+      await delete(customers).go();
+      await delete(activityLogs).go();
+    });
+  }
 }

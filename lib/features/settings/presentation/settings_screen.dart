@@ -2,6 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pharmassist/core/constants/app_constants.dart';
 import 'package:pharmassist/core/theme/theme_provider.dart';
+import 'package:pharmassist/data/local/database_provider.dart';
+import 'package:pharmassist/features/about/presentation/about_screen.dart';
+import 'package:pharmassist/features/inventory/providers/inventory_providers.dart';
+import 'package:pharmassist/features/purchases/providers/purchase_providers.dart';
+import 'package:pharmassist/features/settings/presentation/firebase_backup_dialog.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -171,9 +176,19 @@ class SettingsScreen extends ConsumerWidget {
                           ),
                           const SizedBox(height: 16),
                           _buildInfoTile('Application Name', AppConstants.appName),
-                          _buildInfoTile('System Version', 'v1.0.0 (Desktop ERP)'),
-                          _buildInfoTile('Architecture', 'Offline-First SQLite (Drift 2.x)'),
-                          _buildInfoTile('Platform Target', 'Desktop (Windows / Linux)'),
+                          _buildInfoTile('System Version', 'v1.2.0 (Desktop & Mobile ERP)'),
+                          _buildInfoTile('Architecture', 'Offline-First SQLite & Cloud Sync'),
+                          _buildInfoTile('Platform Target', 'Desktop & Mobile (Linux/Windows/Android)'),
+                          const SizedBox(height: 12),
+                          OutlinedButton.icon(
+                            onPressed: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(builder: (_) => const AboutScreen()),
+                              );
+                            },
+                            icon: const Icon(Icons.info_outline_rounded, size: 18),
+                            label: const Text('View Developer Profile & Contact Details'),
+                          ),
                         ],
                       ),
                     ),
@@ -181,7 +196,12 @@ class SettingsScreen extends ConsumerWidget {
 
                   const SizedBox(height: 20),
 
-                  // Section 3: Data Backup & Local Storage
+                  // Section 3: Firebase Cloud Backup
+                  const FirebaseBackupCard(),
+
+                  const SizedBox(height: 20),
+
+                  // Section 4: Data Backup & Local Storage
                   Card(
                     elevation: 0,
                     color: theme.colorScheme.surface,
@@ -231,6 +251,18 @@ class SettingsScreen extends ConsumerWidget {
                                 icon: const Icon(Icons.health_and_safety_outlined, size: 18),
                                 label: const Text('Check Database Health'),
                               ),
+                              const SizedBox(width: 12),
+                              ElevatedButton.icon(
+                                onPressed: () => _showClearDbDialog(context, ref),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.red.withValues(alpha: 0.15),
+                                  foregroundColor: Colors.redAccent,
+                                  side: BorderSide(color: Colors.red.withValues(alpha: 0.4)),
+                                  elevation: 0,
+                                ),
+                                icon: const Icon(Icons.delete_sweep_rounded, size: 18),
+                                label: const Text('Clear Database'),
+                              ),
                             ],
                           ),
                         ],
@@ -244,6 +276,81 @@ class SettingsScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _showClearDbDialog(BuildContext context, WidgetRef ref) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.red, size: 28),
+            SizedBox(width: 10),
+            Text('Clear Entire Local Database?'),
+          ],
+        ),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Are you sure you want to clear all local data?',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+            ),
+            SizedBox(height: 10),
+            Text(
+              'This operation will wipe all medicines, batches, purchase inward records, sales history, distributors, and activity logs from this local device.',
+              style: TextStyle(fontSize: 12),
+            ),
+            SizedBox(height: 10),
+            Text(
+              'This action CANNOT be undone.',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.redAccent),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+            icon: const Icon(Icons.delete_forever_rounded, size: 18),
+            label: const Text('Yes, Wipe Database'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        final db = ref.read(databaseProvider);
+        await db.clearAllData();
+
+        // Invalidate Riverpod state providers
+        ref.invalidate(medicinesWithStockProvider);
+        ref.invalidate(allBatchesStreamProvider);
+        ref.invalidate(purchaseInvoicesProvider);
+        ref.invalidate(suppliersProvider);
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('All local database records cleared successfully!'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to clear database: $e')),
+          );
+        }
+      }
+    }
   }
 
   Widget _buildThemeCard(
