@@ -42,9 +42,26 @@ final allBatchesStreamProvider = StreamProvider<List<Batch>>((ref) {
   return repo.watchAllBatches();
 });
 
-final medicineSearchQueryProvider = StateProvider<String>((ref) => '');
-final selectedCategoryFilterProvider = StateProvider<String?>((ref) => null);
-final selectedScheduleFilterProvider = StateProvider<String?>((ref) => null);
+class MedicineSearchQueryNotifier extends Notifier<String> {
+  @override
+  String build() => '';
+  set state(String value) => super.state = value;
+}
+final medicineSearchQueryProvider = NotifierProvider<MedicineSearchQueryNotifier, String>(MedicineSearchQueryNotifier.new);
+
+class SelectedCategoryFilterNotifier extends Notifier<String?> {
+  @override
+  String? build() => null;
+  set state(String? value) => super.state = value;
+}
+final selectedCategoryFilterProvider = NotifierProvider<SelectedCategoryFilterNotifier, String?>(SelectedCategoryFilterNotifier.new);
+
+class SelectedScheduleFilterNotifier extends Notifier<String?> {
+  @override
+  String? build() => null;
+  set state(String? value) => super.state = value;
+}
+final selectedScheduleFilterProvider = NotifierProvider<SelectedScheduleFilterNotifier, String?>(SelectedScheduleFilterNotifier.new);
 
 final filteredMedicinesProvider = Provider<List<MedicineWithStock>>((ref) {
   final medicinesAsync = ref.watch(medicinesWithStockProvider);

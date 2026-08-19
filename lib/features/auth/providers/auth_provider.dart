@@ -35,12 +35,15 @@ class AuthState {
   }
 }
 
-class AuthNotifier extends StateNotifier<AuthState> {
+class AuthNotifier extends Notifier<AuthState> {
   static const String _kLoggedInUserIdKey = 'logged_in_user_id';
-  final AppDatabase _db;
 
-  AuthNotifier(this._db) : super(const AuthState(isLoading: true)) {
+  AppDatabase get _db => ref.read(databaseProvider);
+
+  @override
+  AuthState build() {
     _restoreSavedSession();
+    return const AuthState(isLoading: true);
   }
 
   Future<void> _restoreSavedSession() async {
@@ -149,10 +152,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 }
 
-final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
-  final db = ref.watch(databaseProvider);
-  return AuthNotifier(db);
-});
+final authProvider = NotifierProvider<AuthNotifier, AuthState>(AuthNotifier.new);
 
 final allUsersProvider = FutureProvider<List<User>>((ref) async {
   final db = ref.watch(databaseProvider);

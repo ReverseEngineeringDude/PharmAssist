@@ -56,10 +56,9 @@ class PosCartState {
   }
 }
 
-class PosCartNotifier extends StateNotifier<PosCartState> {
-  final Ref _ref;
-
-  PosCartNotifier(this._ref) : super(PosCartState());
+class PosCartNotifier extends Notifier<PosCartState> {
+  @override
+  PosCartState build() => PosCartState();
 
   void setSearchQuery(String query) {
     state = state.copyWith(searchQuery: query);
@@ -83,7 +82,7 @@ class PosCartNotifier extends StateNotifier<PosCartState> {
       throw Exception('${medWithStock.medicine.name} is currently OUT OF STOCK!');
     }
 
-    final repo = _ref.read(inventoryRepositoryProvider);
+    final repo = ref.read(inventoryRepositoryProvider);
 
     Batch? targetBatch = specificBatch;
     targetBatch ??= await repo.getFEFOBatchForMedicine(medWithStock.medicine.id);
@@ -209,7 +208,7 @@ class PosCartNotifier extends StateNotifier<PosCartState> {
 
     state = state.copyWith(isProcessing: true);
     try {
-      final repo = _ref.read(salesRepositoryProvider);
+      final repo = ref.read(salesRepositoryProvider);
       final saleId = await repo.checkoutPOS(
         customerId: state.selectedCustomer?.id,
         cartItems: state.cartItems,
@@ -226,6 +225,4 @@ class PosCartNotifier extends StateNotifier<PosCartState> {
   }
 }
 
-final posCartProvider = StateNotifierProvider<PosCartNotifier, PosCartState>((ref) {
-  return PosCartNotifier(ref);
-});
+final posCartProvider = NotifierProvider<PosCartNotifier, PosCartState>(PosCartNotifier.new);

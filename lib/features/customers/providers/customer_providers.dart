@@ -13,8 +13,19 @@ final customersStreamProvider = StreamProvider<List<Customer>>((ref) {
   return repo.watchCustomers();
 });
 
-final customerSearchQueryProvider = StateProvider<String>((ref) => '');
-final creditOnlyFilterProvider = StateProvider<bool>((ref) => false);
+class CustomerSearchQueryNotifier extends Notifier<String> {
+  @override
+  String build() => '';
+  set state(String value) => super.state = value;
+}
+final customerSearchQueryProvider = NotifierProvider<CustomerSearchQueryNotifier, String>(CustomerSearchQueryNotifier.new);
+
+class CreditOnlyFilterNotifier extends Notifier<bool> {
+  @override
+  bool build() => false;
+  set state(bool value) => super.state = value;
+}
+final creditOnlyFilterProvider = NotifierProvider<CreditOnlyFilterNotifier, bool>(CreditOnlyFilterNotifier.new);
 
 final filteredCustomersProvider = Provider<List<Customer>>((ref) {
   final customersAsync = ref.watch(customersStreamProvider);

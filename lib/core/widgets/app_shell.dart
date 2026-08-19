@@ -14,7 +14,12 @@ import 'package:pharmassist/features/reports/presentation/reports_screen.dart';
 import 'package:pharmassist/features/about/presentation/about_screen.dart';
 import 'package:pharmassist/features/settings/presentation/settings_screen.dart';
 
-final activeNavIndexProvider = StateProvider<int>((ref) => 0);
+class ActiveNavIndexNotifier extends Notifier<int> {
+  @override
+  int build() => 0;
+  set state(int value) => super.state = value;
+}
+final activeNavIndexProvider = NotifierProvider<ActiveNavIndexNotifier, int>(ActiveNavIndexNotifier.new);
 
 class AppShell extends ConsumerWidget {
   const AppShell({super.key});

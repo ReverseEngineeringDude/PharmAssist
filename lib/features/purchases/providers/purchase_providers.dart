@@ -18,7 +18,12 @@ final suppliersProvider = StreamProvider<List<Supplier>>((ref) {
   return repo.watchSuppliers();
 });
 
-final purchaseSearchQueryProvider = StateProvider<String>((ref) => '');
+class PurchaseSearchQueryNotifier extends Notifier<String> {
+  @override
+  String build() => '';
+  set state(String value) => super.state = value;
+}
+final purchaseSearchQueryProvider = NotifierProvider<PurchaseSearchQueryNotifier, String>(PurchaseSearchQueryNotifier.new);
 
 final filteredPurchaseInvoicesProvider = Provider<List<PurchaseInvoiceWithDetails>>((ref) {
   final invoicesAsync = ref.watch(purchaseInvoicesProvider);

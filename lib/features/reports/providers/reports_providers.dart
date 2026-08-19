@@ -5,8 +5,12 @@ import 'package:pharmassist/data/local/app_database.dart';
 import 'package:pharmassist/data/local/database_provider.dart';
 import 'package:pharmassist/features/reports/models/report_models.dart';
 
-/// Filter provider for selecting specific month (null = All Time)
-final selectedMonthFilterProvider = StateProvider<DateTime?>((ref) => null);
+class SelectedMonthFilterNotifier extends Notifier<DateTime?> {
+  @override
+  DateTime? build() => null;
+  set state(DateTime? value) => super.state = value;
+}
+final selectedMonthFilterProvider = NotifierProvider<SelectedMonthFilterNotifier, DateTime?>(SelectedMonthFilterNotifier.new);
 
 final financialSummaryProvider = FutureProvider<FinancialSummaryModel>((ref) async {
   final db = ref.watch(databaseProvider);

@@ -836,11 +836,13 @@ class FirestoreBackupState {
   }
 }
 
-class FirestoreBackupNotifier extends StateNotifier<FirestoreBackupState> {
-  final FirestoreBackupService _service;
+class FirestoreBackupNotifier extends Notifier<FirestoreBackupState> {
+  FirestoreBackupService get _service => ref.read(firestoreBackupServiceProvider);
 
-  FirestoreBackupNotifier(this._service) : super(FirestoreBackupState()) {
+  @override
+  FirestoreBackupState build() {
     _init();
+    return FirestoreBackupState();
   }
 
   Future<void> _init() async {
@@ -1012,7 +1014,4 @@ final firestoreBackupServiceProvider = Provider<FirestoreBackupService>((ref) {
   return FirestoreBackupService();
 });
 
-final firestoreBackupNotifierProvider = StateNotifierProvider<FirestoreBackupNotifier, FirestoreBackupState>((ref) {
-  final service = ref.watch(firestoreBackupServiceProvider);
-  return FirestoreBackupNotifier(service);
-});
+final firestoreBackupNotifierProvider = NotifierProvider<FirestoreBackupNotifier, FirestoreBackupState>(FirestoreBackupNotifier.new);

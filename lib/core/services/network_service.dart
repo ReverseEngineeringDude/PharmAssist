@@ -52,11 +52,16 @@ class NetworkService {
   }
 }
 
-class NetworkNotifier extends StateNotifier<NetworkState> {
+class NetworkNotifier extends Notifier<NetworkState> {
   Timer? _pollingTimer;
 
-  NetworkNotifier() : super(NetworkState()) {
+  @override
+  NetworkState build() {
     _startMonitoring();
+    ref.onDispose(() {
+      _pollingTimer?.cancel();
+    });
+    return NetworkState();
   }
 
   void _startMonitoring() {
@@ -89,17 +94,9 @@ class NetworkNotifier extends StateNotifier<NetworkState> {
 
     return online;
   }
-
-  @override
-  void dispose() {
-    _pollingTimer?.cancel();
-    super.dispose();
-  }
 }
 
-final networkNotifierProvider = StateNotifierProvider<NetworkNotifier, NetworkState>((ref) {
-  return NetworkNotifier();
-});
+final networkNotifierProvider = NotifierProvider<NetworkNotifier, NetworkState>(NetworkNotifier.new);
 
 final isOnlineProvider = Provider<bool>((ref) {
   return ref.watch(networkNotifierProvider).isOnline;

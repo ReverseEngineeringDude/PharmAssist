@@ -16,7 +16,12 @@ import 'package:pharmassist/features/about/presentation/about_screen.dart';
 import 'package:pharmassist/features/inventory/presentation/bulk_import_dialog.dart';
 import 'package:pharmassist/features/settings/presentation/firebase_backup_dialog.dart';
 
-final mobileNavIndexProvider = StateProvider<int>((ref) => 0);
+class MobileNavIndexNotifier extends Notifier<int> {
+  @override
+  int build() => 0;
+  set state(int value) => super.state = value;
+}
+final mobileNavIndexProvider = NotifierProvider<MobileNavIndexNotifier, int>(MobileNavIndexNotifier.new);
 
 class MobileAppShell extends ConsumerStatefulWidget {
   const MobileAppShell({super.key});
