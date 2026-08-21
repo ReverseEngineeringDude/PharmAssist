@@ -14,7 +14,7 @@ class DashboardScreen extends ConsumerStatefulWidget {
   ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTickerProviderStateMixin {
+class _DashboardScreenState extends ConsumerState<DashboardScreen> with TickerProviderStateMixin {
   late TabController _tabController;
 
   @override
@@ -53,90 +53,85 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
     );
 
     return Scaffold(
-      body: Container(
-        padding: const EdgeInsets.all(20),
+      backgroundColor: theme.scaffoldBackgroundColor,
+      body: Padding(
+        padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // 1. EXECUTIVE DASHBOARD HEADER BANNER
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: isDark
-                      ? [const Color(0xFF1E293B), const Color(0xFF0F172A)]
-                      : [theme.colorScheme.primary, theme.colorScheme.primary.withValues(alpha: 0.85)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(14),
-                boxShadow: [
-                  BoxShadow(
-                    color: theme.colorScheme.primary.withValues(alpha: 0.2),
-                    blurRadius: 16,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
+                // gradient: LinearGradient(
+                  // colors: isDark
+                  //     ? [const Color(0xFF1E293B), const Color(0xFF0F172A)]
+                  //     : [theme.colorScheme.primary, theme.colorScheme.primary.withValues(alpha: 0.85)],
+                //   begin: Alignment.topLeft,
+                //   end: Alignment.bottomRight,
+                // ),
+                borderRadius: BorderRadius.circular(20),
               ),
               child: Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.15),
-                      shape: BoxShape.circle,
+                      color: Colors.black,
+                      borderRadius: BorderRadius.circular(16),
                     ),
-                    child: const Icon(Icons.dashboard_rounded, color: Colors.white, size: 28),
+                    child: const Icon(Icons.dashboard_rounded, color: Colors.white, size: 32),
                   ),
-                  const SizedBox(width: 16),
+                  const SizedBox(width: 20),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
-                          'Pharmacy Command Center',
+                          'Dashboard',
                           style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w900,
-                            color: Colors.white,
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.black,
                             letterSpacing: 0.3,
                           ),
                         ),
-                        const SizedBox(height: 2),
+                        const SizedBox(height: 4),
                         Text(
                           'Real-time overview of inventory health, stock reorder alerts, and expiry risk monitoring',
                           style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.white.withValues(alpha: 0.85),
+                            fontSize: 13,
+                            color: Colors.black.withValues(alpha: 0.85),
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(width: 16),
+                  const SizedBox(width: 20),
 
                   // Quick Action Buttons
                   ElevatedButton.icon(
                     onPressed: () {
                       ref.read(activeNavIndexProvider.notifier).state = 1; // POS Billing
                     },
-                    icon: const Icon(Icons.point_of_sale_rounded, size: 18),
-                    label: const Text('POS Billing (F2)', style: TextStyle(fontWeight: FontWeight.bold)),
+                    icon: const Icon(Icons.point_of_sale_rounded, size: 20),
+                    label: const Text('POS Billing (F2)', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.amber.shade700,
+                      backgroundColor: Colors.amber.shade600,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      elevation: 2,
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      elevation: 0,
                     ),
                   ),
                 ],
               ),
             ),
 
-            const SizedBox(height: 18),
+            const SizedBox(height: 24),
 
-            // 2. STYLISH KPI CARDS ROW
+            // 2. STYLISH KPI CARDS ROW (Added cascade fade-in animation)
             Row(
               children: [
                 Expanded(
@@ -148,9 +143,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                     icon: Icons.warning_amber_rounded,
                     color: lowStockList.isEmpty ? const Color(0xFF10B981) : Colors.orange,
                     onTap: () => _switchTab(0),
+                    delayIndex: 0,
                   ),
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 16),
                 Expanded(
                   child: _buildKpiCard(
                     context,
@@ -162,9 +158,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                     icon: Icons.error_outline_rounded,
                     color: expiredList.isEmpty ? const Color(0xFF10B981) : Colors.red,
                     onTap: () => _switchTab(1),
+                    delayIndex: 1,
                   ),
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 16),
                 Expanded(
                   child: _buildKpiCard(
                     context,
@@ -174,9 +171,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                     icon: Icons.access_time_rounded,
                     color: nearExpiryList.isEmpty ? const Color(0xFF10B981) : Colors.amber.shade700,
                     onTap: () => _switchTab(2),
+                    delayIndex: 2,
                   ),
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 16),
                 Expanded(
                   child: _buildKpiCard(
                     context,
@@ -186,73 +184,73 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
                     icon: Icons.inventory_2_outlined,
                     color: theme.colorScheme.primary,
                     onTap: () => _switchTab(3),
+                    delayIndex: 3,
                   ),
                 ),
               ],
             ),
 
-            const SizedBox(height: 18),
+            const SizedBox(height: 24),
 
-            // 3. PILL SEGMENTED TAB BAR FOR ALERTS
+            // 3. CLEAN SEGMENTED TAB BAR
             Container(
-              padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(
-                color: theme.colorScheme.surface,
+                color: theme.colorScheme.surface.withValues(alpha: 0.5),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: theme.dividerColor.withValues(alpha: 0.6)),
               ),
               child: TabBar(
                 controller: _tabController,
                 indicator: BoxDecoration(
-                  color: theme.colorScheme.primary.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.4), width: 1.5),
+                  color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
                 ),
+                indicatorSize: TabBarIndicatorSize.tab,
                 dividerColor: Colors.transparent,
                 labelColor: theme.colorScheme.primary,
-                unselectedLabelColor: theme.colorScheme.onSurface.withValues(alpha: 0.7),
-                labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                unselectedLabelColor: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
                 tabs: [
                   Tab(
-                    height: 38,
+                    height: 44,
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.warning_amber_rounded, size: 16),
-                        const SizedBox(width: 6),
+                        const Icon(Icons.warning_amber_rounded, size: 18),
+                        const SizedBox(width: 8),
                         Text('Low Stock (${lowStockList.length})'),
                       ],
                     ),
                   ),
                   Tab(
-                    height: 38,
+                    height: 44,
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.error_outline_rounded, size: 16),
-                        const SizedBox(width: 6),
+                        const Icon(Icons.error_outline_rounded, size: 18),
+                        const SizedBox(width: 8),
                         Text('Expired (${expiredList.length})'),
                       ],
                     ),
                   ),
                   Tab(
-                    height: 38,
+                    height: 44,
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.access_time_rounded, size: 16),
-                        const SizedBox(width: 6),
+                        const Icon(Icons.access_time_rounded, size: 18),
+                        const SizedBox(width: 8),
                         Text('Expiring Soon (${nearExpiryList.length})'),
                       ],
                     ),
                   ),
                   const Tab(
-                    height: 38,
+                    height: 44,
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.notifications_active_outlined, size: 16),
-                        SizedBox(width: 6),
+                        Icon(Icons.notifications_active_outlined, size: 18),
+                        SizedBox(width: 8),
                         Text('All Urgent Alerts'),
                       ],
                     ),
@@ -261,23 +259,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
               ),
             ),
 
-            const SizedBox(height: 14),
+            const SizedBox(height: 16),
 
             // 4. TAB VIEWS CONTENT AREA
             Expanded(
               child: TabBarView(
                 controller: _tabController,
                 children: [
-                  // Tab 1: Low Stock Items
                   _buildLowStockTab(context, lowStockList),
-
-                  // Tab 2: Expired Items
                   _buildExpiredTab(context, expiredAsync),
-
-                  // Tab 3: Soon Expiring Items
                   _buildSoonExpiringTab(context, nearExpiryAsync),
-
-                  // Tab 4: All Alerts Combined Feed
                   _buildAllAlertsTab(context, lowStockList, expiredList, nearExpiryList),
                 ],
               ),
@@ -296,73 +287,116 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
     required IconData icon,
     required Color color,
     required VoidCallback onTap,
+    required int delayIndex,
   }) {
     final theme = Theme.of(context);
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withValues(alpha: 0.3), width: 1.5),
-          boxShadow: [
-            BoxShadow(
-              color: color.withValues(alpha: 0.08),
-              blurRadius: 10,
-              offset: const Offset(0, 3),
+    
+    return TweenAnimationBuilder(
+      tween: Tween<double>(begin: 0, end: 1),
+      duration: Duration(milliseconds: 400 + (delayIndex * 100)),
+      curve: Curves.easeOutCubic,
+      builder: (context, double value, child) {
+        return Transform.translate(
+          offset: Offset(0, 10 * (1 - value)),
+          child: Opacity(
+            opacity: value,
+            child: child,
+          ),
+        );
+      },
+      child: Material(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        elevation: 0,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          hoverColor: color.withValues(alpha: 0.05),
+          highlightColor: color.withValues(alpha: 0.1),
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
             ),
-          ],
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(icon, size: 26, color: color),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        count,
+                        style: TextStyle(
+                          fontSize: 26,
+                          fontWeight: FontWeight.w800,
+                          color: theme.colorScheme.onSurface,
+                          height: 1.1,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitle,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: color,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(icon, size: 24, color: color),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(String title, String subtitle, IconData icon, Color color) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
             ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    count,
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w900,
-                      color: color,
-                      height: 1.1,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.55),
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+            child: Icon(icon, size: 48, color: color),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            title,
+            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            subtitle,
+            style: const TextStyle(fontSize: 14, color: Colors.grey),
+          ),
+        ],
       ),
     );
   }
@@ -371,138 +405,124 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
     final theme = Theme.of(context);
 
     if (items.isEmpty) {
-      return Card(
-        elevation: 0,
-        color: theme.colorScheme.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: BorderSide(color: theme.dividerColor.withValues(alpha: 0.6)),
-        ),
-        child: const Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.check_circle_outline_rounded, size: 52, color: Color(0xFF10B981)),
-              SizedBox(height: 12),
-              Text(
-                'Stock levels healthy! No low-stock items detected.',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-              ),
-              SizedBox(height: 4),
-              Text('All inventory items are above their reorder thresholds.', style: TextStyle(fontSize: 12, color: Colors.grey)),
-            ],
-          ),
-        ),
+      return _buildEmptyState(
+        'Stock levels healthy!', 
+        'All inventory items are above their reorder thresholds.', 
+        Icons.check_circle_rounded, 
+        const Color(0xFF10B981)
       );
     }
 
-    return Card(
-      elevation: 0,
-      color: theme.colorScheme.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: theme.dividerColor.withValues(alpha: 0.6)),
-      ),
-      child: ListView.separated(
-        padding: const EdgeInsets.all(12),
-        itemCount: items.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 8),
-        itemBuilder: (context, index) {
-          final item = items[index];
-          final med = item.medicine;
-          final isZero = item.totalQuantity == 0;
-          final statusColor = isZero ? Colors.red : Colors.orange;
+    return ListView.separated(
+      padding: const EdgeInsets.only(bottom: 24, top: 8),
+      itemCount: items.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      itemBuilder: (context, index) {
+        final item = items[index];
+        final med = item.medicine;
+        final isZero = item.totalQuantity == 0;
+        final statusColor = isZero ? Colors.red : Colors.orange;
 
-          return Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: statusColor.withValues(alpha: 0.04),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: statusColor.withValues(alpha: 0.3)),
-            ),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 20,
-                  backgroundColor: statusColor.withValues(alpha: 0.15),
-                  child: Icon(
-                    isZero ? Icons.block : Icons.warning_amber_rounded,
-                    color: statusColor,
-                    size: 20,
-                  ),
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.02),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              )
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: statusColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Text(
-                            med.name,
-                            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
-                          ),
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: statusColor,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              isZero ? 'OUT OF STOCK' : 'LOW STOCK',
-                              style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w900, color: Colors.white),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Category: ${med.category ?? 'General'} • Generic: ${med.genericName ?? '—'} • Unit: ${med.unit}',
-                        style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurface.withValues(alpha: 0.65)),
-                      ),
-                    ],
-                  ),
+                child: Icon(
+                  isZero ? Icons.block : Icons.warning_amber_rounded,
+                  color: statusColor,
+                  size: 24,
                 ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Stock: ${item.totalQuantity} / Min: ${med.reorderLevel}',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w900,
-                        fontSize: 14,
-                        color: statusColor,
-                      ),
+                    Row(
+                      children: [
+                        Text(
+                          med.name,
+                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+                        ),
+                        const SizedBox(width: 12),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: statusColor.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            isZero ? 'OUT OF STOCK' : 'LOW STOCK',
+                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: statusColor),
+                          ),
+                        ),
+                      ],
                     ),
+                    const SizedBox(height: 6),
                     Text(
-                      isZero ? 'Reorder Immediate' : 'Deficit: ${med.reorderLevel - item.totalQuantity} ${med.unit}s',
-                      style: TextStyle(fontSize: 11, color: statusColor, fontWeight: FontWeight.w600),
+                      'Category: ${med.category ?? 'General'} • Generic: ${med.genericName ?? '—'} • Unit: ${med.unit}',
+                      style: TextStyle(fontSize: 13, color: theme.colorScheme.onSurface.withValues(alpha: 0.5)),
                     ),
                   ],
                 ),
-                const SizedBox(width: 16),
-                ElevatedButton.icon(
-                  onPressed: () {
-                    showDialog(
-                      context: context,
-                      builder: (_) => StockAdjustmentDialog(medicine: med),
-                    );
-                  },
-                  icon: const Icon(Icons.add, size: 15),
-                  label: const Text('Restock', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: statusColor,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    'Stock: ${item.totalQuantity} / Min: ${med.reorderLevel}',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 15,
+                      color: theme.colorScheme.onSurface,
+                    ),
                   ),
+                  const SizedBox(height: 4),
+                  Text(
+                    isZero ? 'Reorder Immediate' : 'Deficit: ${med.reorderLevel - item.totalQuantity} ${med.unit}s',
+                    style: TextStyle(fontSize: 12, color: statusColor, fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+              const SizedBox(width: 20),
+              ElevatedButton.icon(
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (_) => StockAdjustmentDialog(medicine: med),
+                  );
+                },
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('Restock', style: TextStyle(fontWeight: FontWeight.w700)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
+                  foregroundColor: theme.colorScheme.primary,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 ),
-              ],
-            ),
-          );
-        },
-      ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -513,130 +533,108 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
     return asyncVal.when(
       data: (items) {
         if (items.isEmpty) {
-          return Card(
-            elevation: 0,
-            color: theme.colorScheme.surface,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-              side: BorderSide(color: theme.dividerColor.withValues(alpha: 0.6)),
-            ),
-            child: const Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.verified_outlined, size: 52, color: Color(0xFF10B981)),
-                  SizedBox(height: 12),
-                  Text(
-                    'No expired stock found in inventory!',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                  ),
-                  SizedBox(height: 4),
-                  Text('All registered batches are within valid shelf life.', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                ],
-              ),
-            ),
+          return _buildEmptyState(
+            'No expired stock found!', 
+            'All registered batches are within valid shelf life.', 
+            Icons.verified_rounded, 
+            const Color(0xFF10B981)
           );
         }
 
-        return Card(
-          elevation: 0,
-          color: theme.colorScheme.surface,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: BorderSide(color: theme.dividerColor.withValues(alpha: 0.6)),
-          ),
-          child: ListView.separated(
-            padding: const EdgeInsets.all(12),
-            itemCount: items.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
-            itemBuilder: (context, index) {
-              final item = items[index];
-              final batch = item.batch;
-              final med = item.medicine;
-              final loss = batch.quantity * batch.purchasePrice;
+        return ListView.separated(
+          padding: const EdgeInsets.only(bottom: 24, top: 8),
+          itemCount: items.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 12),
+          itemBuilder: (context, index) {
+            final item = items[index];
+            final batch = item.batch;
+            final med = item.medicine;
+            final loss = batch.quantity * batch.purchasePrice;
 
-              return Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.red.withValues(alpha: 0.04),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
-                ),
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 20,
-                      backgroundColor: Colors.red.withValues(alpha: 0.15),
-                      child: const Icon(Icons.event_busy, color: Colors.red, size: 20),
+            return Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.red.withValues(alpha: 0.04),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Text(
-                                '${med.name} — Batch: ${batch.batchNo}',
-                                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
-                              ),
-                              const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: Colors.red,
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: const Text(
-                                  'EXPIRED',
-                                  style: TextStyle(fontSize: 9, fontWeight: FontWeight.w900, color: Colors.white),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Expired On: ${dateFormat.format(batch.expiryDate)} • Unit Cost: ₹${batch.purchasePrice.toStringAsFixed(2)} • MRP: ₹${batch.mrp.toStringAsFixed(2)}',
-                            style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurface.withValues(alpha: 0.65)),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
+                    child: const Icon(Icons.event_busy, color: Colors.red, size: 24),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'Qty: ${batch.quantity} ${med.unit}',
-                          style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14, color: Colors.red),
+                        Row(
+                          children: [
+                            Text(
+                              med.name,
+                              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+                            ),
+                            const SizedBox(width: 12),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.red,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: const Text(
+                                'EXPIRED',
+                                style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Colors.white),
+                              ),
+                            ),
+                          ],
                         ),
+                        const SizedBox(height: 6),
                         Text(
-                          'Est. Loss: ₹${loss.toStringAsFixed(2)}',
-                          style: const TextStyle(fontSize: 11, color: Colors.red, fontWeight: FontWeight.bold),
+                          'Batch: ${batch.batchNo} • Expired On: ${dateFormat.format(batch.expiryDate)}',
+                          style: TextStyle(fontSize: 13, color: theme.colorScheme.onSurface.withValues(alpha: 0.6)),
                         ),
                       ],
                     ),
-                    const SizedBox(width: 16),
-                    OutlinedButton.icon(
-                      onPressed: () {
-                        showDialog(
-                          context: context,
-                          builder: (_) => StockAdjustmentDialog(medicine: med),
-                        );
-                      },
-                      icon: const Icon(Icons.delete_outline, size: 15),
-                      label: const Text('Dispose Stock', style: TextStyle(fontSize: 12)),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.red,
-                        side: const BorderSide(color: Colors.red),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        'Qty: ${batch.quantity} ${med.unit}',
+                        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: Colors.red),
                       ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Est. Loss: ₹${loss.toStringAsFixed(2)}',
+                        style: const TextStyle(fontSize: 12, color: Colors.red, fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(width: 20),
+                  FilledButton.icon(
+                    onPressed: () {
+                      showDialog(
+                        context: context,
+                        builder: (_) => StockAdjustmentDialog(medicine: med),
+                      );
+                    },
+                    icon: const Icon(Icons.delete_outline, size: 18),
+                    label: const Text('Dispose'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
-                  ],
-                ),
-              );
-            },
-          ),
+                  ),
+                ],
+              ),
+            );
+          },
         );
       },
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -652,129 +650,108 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
     return asyncVal.when(
       data: (items) {
         if (items.isEmpty) {
-          return Card(
-            elevation: 0,
-            color: theme.colorScheme.surface,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-              side: BorderSide(color: theme.dividerColor.withValues(alpha: 0.6)),
-            ),
-            child: const Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.thumb_up_alt_outlined, size: 52, color: Color(0xFF10B981)),
-                  SizedBox(height: 12),
-                  Text(
-                    'No batches expiring in the next 90 days.',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                  ),
-                  SizedBox(height: 4),
-                  Text('All batch expiries are well in the future.', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                ],
-              ),
-            ),
+          return _buildEmptyState(
+            'No near expiries!', 
+            'All batch expiries are well in the future.', 
+            Icons.thumb_up_alt_rounded, 
+            const Color(0xFF10B981)
           );
         }
 
-        return Card(
-          elevation: 0,
-          color: theme.colorScheme.surface,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: BorderSide(color: theme.dividerColor.withValues(alpha: 0.6)),
-          ),
-          child: ListView.separated(
-            padding: const EdgeInsets.all(12),
-            itemCount: items.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
-            itemBuilder: (context, index) {
-              final item = items[index];
-              final batch = item.batch;
-              final med = item.medicine;
+        return ListView.separated(
+          padding: const EdgeInsets.only(bottom: 24, top: 8),
+          itemCount: items.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 12),
+          itemBuilder: (context, index) {
+            final item = items[index];
+            final batch = item.batch;
+            final med = item.medicine;
+            final daysRemaining = batch.expiryDate.difference(now).inDays;
 
-              final daysRemaining = batch.expiryDate.difference(now).inDays;
-
-              return Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.amber.withValues(alpha: 0.04),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.amber.shade700.withValues(alpha: 0.3)),
-                ),
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 20,
-                      backgroundColor: Colors.amber.withValues(alpha: 0.15),
-                      child: Icon(Icons.access_time_rounded, color: Colors.amber.shade800, size: 20),
+            return Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.amber.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Text(
-                                '${med.name} — Batch: ${batch.batchNo}',
-                                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
-                              ),
-                              const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: Colors.amber.shade800,
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Text(
-                                  '$daysRemaining DAYS LEFT',
-                                  style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w900, color: Colors.white),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Expiry Date: ${dateFormat.format(batch.expiryDate)} • MRP: ₹${batch.mrp.toStringAsFixed(2)} • Cost: ₹${batch.purchasePrice.toStringAsFixed(2)}',
-                            style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurface.withValues(alpha: 0.65)),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
+                    child: Icon(Icons.access_time_filled_rounded, color: Colors.amber.shade800, size: 24),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'Qty: ${batch.quantity} ${med.unit}',
-                          style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14, color: Colors.amber.shade900),
+                        Row(
+                          children: [
+                            Text(
+                              med.name,
+                              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+                            ),
+                            const SizedBox(width: 12),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.amber.shade700.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                '$daysRemaining DAYS LEFT',
+                                style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Colors.amber.shade800),
+                              ),
+                            ),
+                          ],
                         ),
+                        const SizedBox(height: 6),
                         Text(
-                          'Prioritize Sales (FEFO)',
-                          style: TextStyle(fontSize: 11, color: Colors.amber.shade800, fontWeight: FontWeight.bold),
+                          'Batch: ${batch.batchNo} • Expiry: ${dateFormat.format(batch.expiryDate)}',
+                          style: TextStyle(fontSize: 13, color: theme.colorScheme.onSurface.withValues(alpha: 0.6)),
                         ),
                       ],
                     ),
-                    const SizedBox(width: 16),
-                    OutlinedButton.icon(
-                      onPressed: () {
-                        showDialog(
-                          context: context,
-                          builder: (_) => BatchManagementDialog(medicine: med),
-                        );
-                      },
-                      icon: const Icon(Icons.qr_code_2, size: 15),
-                      label: const Text('Batches', style: TextStyle(fontSize: 12)),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        'Qty: ${batch.quantity} ${med.unit}',
+                        style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: theme.colorScheme.onSurface),
                       ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Prioritize (FEFO)',
+                        style: TextStyle(fontSize: 12, color: Colors.amber.shade800, fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(width: 20),
+                  FilledButton.icon(
+                    onPressed: () {
+                      showDialog(
+                        context: context,
+                        builder: (_) => BatchManagementDialog(medicine: med),
+                      );
+                    },
+                    icon: const Icon(Icons.qr_code_2, size: 18),
+                    label: const Text('Manage'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.amber.shade700,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
-                  ],
-                ),
-              );
-            },
-          ),
+                  ),
+                ],
+              ),
+            );
+          },
         );
       },
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -792,166 +769,155 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with SingleTi
     final totalAlerts = lowStock.length + expired.length + nearExpiry.length;
 
     if (totalAlerts == 0) {
-      return Card(
-        elevation: 0,
-        color: theme.colorScheme.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: BorderSide(color: theme.dividerColor.withValues(alpha: 0.6)),
-        ),
-        child: const Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.check_circle_outline, size: 54, color: Color(0xFF10B981)),
-              SizedBox(height: 12),
-              Text(
-                'Zero Inventory Alerts!',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-              ),
-              SizedBox(height: 4),
-              Text(
-                'All stock levels are optimal and no batches are expired or near expiry.',
-                style: TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-            ],
-          ),
-        ),
+      return _buildEmptyState(
+        'Zero Inventory Alerts!', 
+        'All stock levels are optimal and no batches are expired.', 
+        Icons.shield_rounded, 
+        const Color(0xFF10B981)
       );
     }
 
-    return Card(
-      elevation: 0,
-      color: theme.colorScheme.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: theme.dividerColor.withValues(alpha: 0.6)),
-      ),
-      child: ListView(
-        padding: const EdgeInsets.all(12),
-        children: [
-          if (expired.isNotEmpty) ...[
-            _buildSectionHeader(theme, 'EXPIRED BATCHES (${expired.length})', Colors.red),
-            ...expired.map((item) {
-              return Container(
-                margin: const EdgeInsets.only(bottom: 6),
-                decoration: BoxDecoration(
-                  color: Colors.red.withValues(alpha: 0.04),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.red.withValues(alpha: 0.2)),
-                ),
-                child: ListTile(
-                  dense: true,
-                  leading: const Icon(Icons.error_outline, color: Colors.red),
-                  title: Text('${item.medicine.name} (Batch: ${item.batch.batchNo})', style: const TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: Text('Qty: ${item.batch.quantity} | Expired: ${item.batch.expiryDate.toString().split(' ')[0]}'),
-                  trailing: ElevatedButton(
-                    onPressed: () {
-                      showDialog(
-                        context: context,
-                        builder: (_) => StockAdjustmentDialog(medicine: item.medicine),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      minimumSize: Size.zero,
-                    ),
-                    child: const Text('Dispose', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+    return ListView(
+      padding: const EdgeInsets.only(bottom: 24, top: 8),
+      children: [
+        if (expired.isNotEmpty) ...[
+          _buildSectionHeader('EXPIRED BATCHES (${expired.length})', Colors.red),
+          ...expired.map((item) {
+            return Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              decoration: BoxDecoration(
+                color: Colors.red.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
                   ),
+                  child: const Icon(Icons.error_rounded, color: Colors.red, size: 20),
                 ),
-              );
-            }),
-            const SizedBox(height: 8),
-          ],
-
-          if (lowStock.isNotEmpty) ...[
-            _buildSectionHeader(theme, 'LOW STOCK ITEMS (${lowStock.length})', Colors.orange),
-            ...lowStock.map((item) {
-              return Container(
-                margin: const EdgeInsets.only(bottom: 6),
-                decoration: BoxDecoration(
-                  color: Colors.orange.withValues(alpha: 0.04),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.orange.withValues(alpha: 0.2)),
-                ),
-                child: ListTile(
-                  dense: true,
-                  leading: const Icon(Icons.warning_amber_rounded, color: Colors.orange),
-                  title: Text(item.medicine.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: Text('Stock: ${item.totalQuantity} / Reorder Level: ${item.medicine.reorderLevel}'),
-                  trailing: ElevatedButton(
-                    onPressed: () {
-                      showDialog(
-                        context: context,
-                        builder: (_) => StockAdjustmentDialog(medicine: item.medicine),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.orange,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      minimumSize: Size.zero,
-                    ),
-                    child: const Text('Restock', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                title: Text('${item.medicine.name} (Batch: ${item.batch.batchNo})', style: const TextStyle(fontWeight: FontWeight.w700)),
+                subtitle: Text('Qty: ${item.batch.quantity} | Expired: ${item.batch.expiryDate.toString().split(' ')[0]}'),
+                trailing: FilledButton(
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (_) => StockAdjustmentDialog(medicine: item.medicine),
+                    );
+                  },
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
+                  child: const Text('Dispose', style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
-              );
-            }),
-            const SizedBox(height: 8),
-          ],
-
-          if (nearExpiry.isNotEmpty) ...[
-            _buildSectionHeader(theme, 'SOON EXPIRING BATCHES (${nearExpiry.length})', Colors.amber.shade800),
-            ...nearExpiry.map((item) {
-              return Container(
-                margin: const EdgeInsets.only(bottom: 6),
-                decoration: BoxDecoration(
-                  color: Colors.amber.withValues(alpha: 0.04),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.amber.withValues(alpha: 0.2)),
-                ),
-                child: ListTile(
-                  dense: true,
-                  leading: Icon(Icons.access_time_rounded, color: Colors.amber.shade800),
-                  title: Text('${item.medicine.name} (Batch: ${item.batch.batchNo})', style: const TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: Text('Qty: ${item.batch.quantity} | Expiry: ${item.batch.expiryDate.toString().split(' ')[0]}'),
-                  trailing: OutlinedButton(
-                    onPressed: () {
-                      showDialog(
-                        context: context,
-                        builder: (_) => BatchManagementDialog(medicine: item.medicine),
-                      );
-                    },
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      minimumSize: Size.zero,
-                    ),
-                    child: const Text('Inspect', style: TextStyle(fontSize: 11)),
-                  ),
-                ),
-              );
-            }),
-          ],
+              ),
+            );
+          }),
+          const SizedBox(height: 16),
         ],
-      ),
+
+        if (lowStock.isNotEmpty) ...[
+          _buildSectionHeader('LOW STOCK ITEMS (${lowStock.length})', Colors.orange),
+          ...lowStock.map((item) {
+            return Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surface,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.warning_rounded, color: Colors.orange, size: 20),
+                ),
+                title: Text(item.medicine.name, style: const TextStyle(fontWeight: FontWeight.w700)),
+                subtitle: Text('Stock: ${item.totalQuantity} / Reorder Level: ${item.medicine.reorderLevel}'),
+                trailing: FilledButton(
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (_) => StockAdjustmentDialog(medicine: item.medicine),
+                    );
+                  },
+                  style: FilledButton.styleFrom(
+                    backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
+                    foregroundColor: theme.colorScheme.primary,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    elevation: 0,
+                  ),
+                  child: const Text('Restock', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ),
+            );
+          }),
+          const SizedBox(height: 16),
+        ],
+
+        if (nearExpiry.isNotEmpty) ...[
+          _buildSectionHeader('SOON EXPIRING (${nearExpiry.length})', Colors.amber.shade700),
+          ...nearExpiry.map((item) {
+            return Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              decoration: BoxDecoration(
+                color: Colors.amber.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.shade700.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.access_time_filled_rounded, color: Colors.amber.shade800, size: 20),
+                ),
+                title: Text('${item.medicine.name} (Batch: ${item.batch.batchNo})', style: const TextStyle(fontWeight: FontWeight.w700)),
+                subtitle: Text('Qty: ${item.batch.quantity} | Expiry: ${item.batch.expiryDate.toString().split(' ')[0]}'),
+                trailing: FilledButton(
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (_) => BatchManagementDialog(medicine: item.medicine),
+                    );
+                  },
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Colors.amber.shade700,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  child: const Text('Inspect', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ),
+            );
+          }),
+        ],
+      ],
     );
   }
 
-  Widget _buildSectionHeader(ThemeData theme, String title, Color color) {
+  Widget _buildSectionHeader(String title, Color color) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+      padding: const EdgeInsets.only(left: 4, bottom: 12, top: 8),
       child: Text(
         title,
         style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w900,
+          fontSize: 13,
+          fontWeight: FontWeight.w800,
           color: color,
-          letterSpacing: 0.6,
+          letterSpacing: 0.8,
         ),
       ),
     );
   }
 }
-

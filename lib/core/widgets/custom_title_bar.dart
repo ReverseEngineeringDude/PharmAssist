@@ -87,16 +87,17 @@ class _CustomTitleBarState extends ConsumerState<CustomTitleBar> with WindowList
     final authState = ref.watch(authProvider);
 
     return Container(
-      height: 38,
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        border: Border(
-          bottom: BorderSide(
-            color: theme.dividerColor,
-            width: 1,
-          ),
-        ),
-      ),
+     height: 38,
+
+decoration: BoxDecoration(
+  color: theme.colorScheme.surface,
+  border: Border(
+    bottom: BorderSide(
+      color: theme.colorScheme.outline.withValues(alpha: 0.20),
+      width: 1,
+    ),
+  ),
+),
       child: Row(
         children: [
           // App Icon & Title
