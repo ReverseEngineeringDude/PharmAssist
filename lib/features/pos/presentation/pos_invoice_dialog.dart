@@ -16,11 +16,13 @@ class PosInvoiceDialog extends ConsumerWidget {
     final dateFormat = DateFormat('dd MMM yyyy, hh:mm a');
 
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      backgroundColor: theme.scaffoldBackgroundColor,
+      elevation: 0,
       child: Container(
         width: 520,
-        constraints: const BoxConstraints(maxHeight: 650),
-        padding: const EdgeInsets.all(24),
+        constraints: const BoxConstraints(maxHeight: 700),
+        padding: const EdgeInsets.all(28),
         child: FutureBuilder<SaleWithItems?>(
           future: salesRepo.getSaleDetails(saleId),
           builder: (context, snapshot) {
@@ -37,12 +39,25 @@ class PosInvoiceDialog extends ConsumerWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.error_outline, size: 48, color: Colors.red),
-                    const SizedBox(height: 12),
-                    Text('Failed to load invoice #$saleId'),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withValues(alpha: 0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.error_outline_rounded, size: 40, color: Colors.red),
+                    ),
                     const SizedBox(height: 16),
-                    ElevatedButton(
+                    Text(
+                      'Failed to load invoice #$saleId',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
+                    const SizedBox(height: 24),
+                    FilledButton(
                       onPressed: () => Navigator.of(context).pop(),
+                      style: FilledButton.styleFrom(
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
                       child: const Text('Close'),
                     ),
                   ],
@@ -54,6 +69,8 @@ class PosInvoiceDialog extends ConsumerWidget {
             final sale = details.sale;
             final customer = details.customer;
             final items = details.items;
+            
+            final isCredit = sale.paymentMode.toLowerCase() == 'credit';
 
             return Column(
               mainAxisSize: MainAxisSize.min,
@@ -65,82 +82,109 @@ class PosInvoiceDialog extends ConsumerWidget {
                   children: [
                     Row(
                       children: [
-                        CircleAvatar(
-                          backgroundColor: Colors.green.withValues(alpha: 0.15),
-                          child: const Icon(Icons.check_circle_rounded, color: Colors.green),
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.green.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(Icons.check_circle_rounded, color: Colors.green, size: 28),
                         ),
-                        const SizedBox(width: 12),
-                        const Column(
+                        const SizedBox(width: 16),
+                        Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
+                            const Text(
                               'Sale Complete',
-                              style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
+                              style: TextStyle(fontWeight: FontWeight.w900, fontSize: 20),
                             ),
+                            const SizedBox(height: 2),
                             Text(
                               'Tax Invoice / Cash Receipt',
-                              style: TextStyle(fontSize: 12, color: Colors.grey),
+                              style: TextStyle(fontSize: 13, color: theme.colorScheme.onSurface.withValues(alpha: 0.6)),
                             ),
                           ],
                         ),
                       ],
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () => Navigator.of(context).pop(),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.onSurface.withValues(alpha: 0.05),
+                        shape: BoxShape.circle,
+                      ),
+                      child: IconButton(
+                        icon: const Icon(Icons.close_rounded, size: 20),
+                        onPressed: () => Navigator.of(context).pop(),
+                        tooltip: 'Close',
+                      ),
                     ),
                   ],
                 ),
-                const Divider(height: 24),
+                
+                const SizedBox(height: 24),
 
                 // Printable Thermal Receipt Container
                 Expanded(
                   child: Container(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
                       color: theme.colorScheme.surface,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: theme.dividerColor),
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.03),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
                     ),
                     child: SingleChildScrollView(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           // Store Header
-                          const Center(
+                          Center(
                             child: Column(
                               children: [
-                                Text(
+                                const Text(
                                   'PHARM ASSIST ERP',
-                                  style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, letterSpacing: 1),
+                                  style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, letterSpacing: 1),
                                 ),
+                                const SizedBox(height: 4),
                                 Text(
                                   'Licensed Retail & Wholesale Pharmacy',
-                                  style: TextStyle(fontSize: 11, color: Colors.grey),
+                                  style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurface.withValues(alpha: 0.6)),
                                 ),
+                                const SizedBox(height: 2),
                                 Text(
                                   'GSTIN: 32ABCDE1234F1Z5 | DL: KKL/2026/PHARM',
-                                  style: TextStyle(fontSize: 10, color: Colors.grey),
+                                  style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurface.withValues(alpha: 0.5)),
                                 ),
                               ],
                             ),
                           ),
-                          const Divider(height: 16),
+                          
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            child: Divider(color: theme.colorScheme.onSurface.withValues(alpha: 0.1)),
+                          ),
 
                           // Invoice Meta Info
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'Invoice: ${sale.invoiceNo}',
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                                    'Invoice: #${sale.invoiceNo}',
+                                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
                                   ),
+                                  const SizedBox(height: 4),
                                   Text(
-                                    'Date: ${dateFormat.format(sale.date)}',
-                                    style: const TextStyle(fontSize: 11, color: Colors.grey),
+                                    dateFormat.format(sale.date),
+                                    style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurface.withValues(alpha: 0.6)),
                                   ),
                                 ],
                               ),
@@ -148,45 +192,69 @@ class PosInvoiceDialog extends ConsumerWidget {
                                 crossAxisAlignment: CrossAxisAlignment.end,
                                 children: [
                                   Text(
-                                    'Customer: ${customer?.name ?? 'Walk-in Customer'}',
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                                    customer?.name ?? 'Walk-in Customer',
+                                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
                                   ),
-                                  Text(
-                                    'Payment: ${sale.paymentMode.toUpperCase()}',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w800,
-                                      color: sale.paymentMode == 'credit' ? Colors.orange : Colors.green,
+                                  const SizedBox(height: 6),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: isCredit 
+                                          ? Colors.orange.withValues(alpha: 0.15) 
+                                          : Colors.green.withValues(alpha: 0.15),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      sale.paymentMode.toUpperCase(),
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w800,
+                                        color: isCredit ? Colors.orange.shade800 : Colors.green.shade700,
+                                      ),
                                     ),
                                   ),
                                 ],
                               ),
                             ],
                           ),
-                          const SizedBox(height: 12),
+                          
+                          const SizedBox(height: 20),
 
-                          // Itemized Table
+                          // Itemized Table Header
                           Container(
-                            padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+                            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
                             decoration: BoxDecoration(
-                              color: theme.colorScheme.onSurface.withValues(alpha: 0.05),
-                              borderRadius: BorderRadius.circular(6),
+                              color: theme.colorScheme.primary.withValues(alpha: 0.05),
+                              borderRadius: BorderRadius.circular(8),
                             ),
-                            child: const Row(
+                            child: Row(
                               children: [
-                                Expanded(flex: 3, child: Text('ITEM / BATCH', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold))),
-                                Expanded(flex: 1, child: Text('QTY', textAlign: TextAlign.center, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold))),
-                                Expanded(flex: 1, child: Text('RATE', textAlign: TextAlign.right, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold))),
-                                Expanded(flex: 1, child: Text('TOTAL', textAlign: TextAlign.right, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold))),
+                                Expanded(
+                                  flex: 3, 
+                                  child: Text('ITEM / BATCH', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: theme.colorScheme.primary))
+                                ),
+                                Expanded(
+                                  flex: 1, 
+                                  child: Text('QTY', textAlign: TextAlign.center, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: theme.colorScheme.primary))
+                                ),
+                                Expanded(
+                                  flex: 1, 
+                                  child: Text('RATE', textAlign: TextAlign.right, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: theme.colorScheme.primary))
+                                ),
+                                Expanded(
+                                  flex: 1, 
+                                  child: Text('TOTAL', textAlign: TextAlign.right, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: theme.colorScheme.primary))
+                                ),
                               ],
                             ),
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 8),
 
+                          // Items List
                           ...items.map((it) {
                             final total = (it.item.qty * it.item.rate) - it.item.discount + it.item.taxAmount;
                             return Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
                               child: Row(
                                 children: [
                                   Expanded(
@@ -194,48 +262,78 @@ class PosInvoiceDialog extends ConsumerWidget {
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        Text(it.medicine.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                                        Text('Batch: ${it.batch.batchNo} | GST: ${it.medicine.gstRate}%', style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                                        Text(it.medicine.name, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          'Batch: ${it.batch.batchNo} | GST: ${it.medicine.gstRate}%', 
+                                          style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurface.withValues(alpha: 0.5)),
+                                        ),
                                       ],
                                     ),
                                   ),
-                                  Expanded(flex: 1, child: Text('${it.item.qty} ${it.medicine.unit}', textAlign: TextAlign.center, style: const TextStyle(fontSize: 11))),
-                                  Expanded(flex: 1, child: Text('₹${it.item.rate.toStringAsFixed(2)}', textAlign: TextAlign.right, style: const TextStyle(fontSize: 11))),
-                                  Expanded(flex: 1, child: Text('₹${total.toStringAsFixed(2)}', textAlign: TextAlign.right, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
+                                  Expanded(
+                                    flex: 1, 
+                                    child: Text('${it.item.qty} ${it.medicine.unit}', textAlign: TextAlign.center, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600))
+                                  ),
+                                  Expanded(
+                                    flex: 1, 
+                                    child: Text('₹${it.item.rate.toStringAsFixed(2)}', textAlign: TextAlign.right, style: const TextStyle(fontSize: 12))
+                                  ),
+                                  Expanded(
+                                    flex: 1, 
+                                    child: Text('₹${total.toStringAsFixed(2)}', textAlign: TextAlign.right, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700))
+                                  ),
                                 ],
                               ),
                             );
                           }),
 
-                          const Divider(height: 16),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            child: Divider(color: theme.colorScheme.onSurface.withValues(alpha: 0.1)),
+                          ),
 
                           // Calculation Summary
                           Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
                             child: Column(
                               children: [
-                                _buildInvoiceSummaryRow('Subtotal', '₹${sale.subtotal.toStringAsFixed(2)}'),
-                                _buildInvoiceSummaryRow('CGST', '₹${sale.taxCgst.toStringAsFixed(2)}'),
-                                _buildInvoiceSummaryRow('SGST', '₹${sale.taxSgst.toStringAsFixed(2)}'),
+                                _buildInvoiceSummaryRow(context, 'Subtotal', '₹${sale.subtotal.toStringAsFixed(2)}'),
+                                _buildInvoiceSummaryRow(context, 'CGST', '₹${sale.taxCgst.toStringAsFixed(2)}'),
+                                _buildInvoiceSummaryRow(context, 'SGST', '₹${sale.taxSgst.toStringAsFixed(2)}'),
                                 if (sale.discount > 0)
-                                  _buildInvoiceSummaryRow('Overall Discount', '- ₹${sale.discount.toStringAsFixed(2)}', isDiscount: true),
-                                const Divider(height: 12),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    const Text('Grand Total', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
-                                    Text('₹${sale.total.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: Color(0xFF10B981))),
-                                  ],
+                                  _buildInvoiceSummaryRow(context, 'Overall Discount', '- ₹${sale.discount.toStringAsFixed(2)}', isDiscount: true),
+                                
+                                const SizedBox(height: 12),
+                                
+                                // Grand Total Box
+                                Container(
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: Colors.green.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      const Text('Grand Total', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+                                      Text(
+                                        '₹${sale.total.toStringAsFixed(2)}', 
+                                        style: TextStyle(fontWeight: FontWeight.w900, fontSize: 20, color: Colors.green.shade700),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ],
                             ),
                           ),
-                          const SizedBox(height: 12),
+                          
+                          const SizedBox(height: 24),
 
-                          const Center(
+                          Center(
                             child: Text(
                               'Thank you for your visit! Wish you good health.',
-                              style: TextStyle(fontSize: 10, fontStyle: FontStyle.italic, color: Colors.grey),
+                              style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: theme.colorScheme.onSurface.withValues(alpha: 0.4)),
                             ),
                           ),
                         ],
@@ -243,7 +341,8 @@ class PosInvoiceDialog extends ConsumerWidget {
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
+                
+                const SizedBox(height: 24),
 
                 // Dialog Buttons
                 Row(
@@ -255,23 +354,27 @@ class PosInvoiceDialog extends ConsumerWidget {
                             const SnackBar(content: Text('Receipt sent to thermal printer pool!')),
                           );
                         },
-                        icon: const Icon(Icons.print_rounded),
-                        label: const Text('Print Thermal Receipt'),
+                        icon: const Icon(Icons.print_rounded, size: 18),
+                        label: const Text('Print Thermal Receipt', style: TextStyle(fontWeight: FontWeight.w700)),
                         style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          side: BorderSide(color: theme.colorScheme.primary.withValues(alpha: 0.3)),
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 16),
                     Expanded(
-                      child: ElevatedButton.icon(
+                      child: FilledButton.icon(
                         onPressed: () => Navigator.of(context).pop(),
-                        icon: const Icon(Icons.done_all_rounded),
-                        label: const Text('Done / Next Sale'),
-                        style: ElevatedButton.styleFrom(
+                        icon: const Icon(Icons.done_all_rounded, size: 18),
+                        label: const Text('Done / Next Sale', style: TextStyle(fontWeight: FontWeight.w700)),
+                        style: FilledButton.styleFrom(
                           backgroundColor: theme.colorScheme.primary,
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
                       ),
                     ),
@@ -285,14 +388,29 @@ class PosInvoiceDialog extends ConsumerWidget {
     );
   }
 
-  Widget _buildInvoiceSummaryRow(String label, String value, {bool isDiscount = false}) {
+  Widget _buildInvoiceSummaryRow(BuildContext context, String label, String value, {bool isDiscount = false}) {
+    final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
+      padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: TextStyle(fontSize: 11, color: isDiscount ? Colors.red : Colors.grey.shade700)),
-          Text(value, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: isDiscount ? Colors.red : null)),
+          Text(
+            label, 
+            style: TextStyle(
+              fontSize: 12, 
+              fontWeight: FontWeight.w500,
+              color: isDiscount ? Colors.red : theme.colorScheme.onSurface.withValues(alpha: 0.6),
+            )
+          ),
+          Text(
+            value, 
+            style: TextStyle(
+              fontSize: 13, 
+              fontWeight: FontWeight.w700, 
+              color: isDiscount ? Colors.red : theme.colorScheme.onSurface,
+            )
+          ),
         ],
       ),
     );
