@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pharmassist/core/constants/app_constants.dart';
 import 'package:pharmassist/core/services/network_service.dart';
@@ -72,6 +73,13 @@ class _AppShellState extends ConsumerState<AppShell> {
     }
   }
 
+  void _navigateToTab(String title, List<NavItem> navItems) {
+    final targetIndex = navItems.indexWhere((item) => item.title == title);
+    if (targetIndex != -1) {
+      ref.read(activeNavIndexProvider.notifier).state = targetIndex;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -82,233 +90,250 @@ class _AppShellState extends ConsumerState<AppShell> {
     final navItems = _getNavItemsForRole(authState.role);
     final isDesktop = !kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS);
 
-    return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
-      body: Column(
-        children: [
-          // Custom Desktop Title Bar
-          if (isDesktop) const CustomTitleBar(),
+    return CallbackShortcuts(
+      bindings: {
+        const SingleActivator(LogicalKeyboardKey.f1): () => _navigateToTab('Dashboard', navItems),
+        const SingleActivator(LogicalKeyboardKey.f2): () => _navigateToTab('POS Billing', navItems),
+        const SingleActivator(LogicalKeyboardKey.f3): () => _navigateToTab('Inventory Master', navItems),
+        const SingleActivator(LogicalKeyboardKey.f4): () => _navigateToTab('Purchases', navItems),
+        const SingleActivator(LogicalKeyboardKey.f5): () => _navigateToTab('Reports & Analytics', navItems),
+        const SingleActivator(LogicalKeyboardKey.f6): () => _navigateToTab('Settings & Backup', navItems),
+        const SingleActivator(LogicalKeyboardKey.f7): () => _navigateToTab('About Us', navItems),
+      },
+      child: Focus(
+        autofocus: true,
+        child: Scaffold(
+          backgroundColor: theme.scaffoldBackgroundColor,
+          body: Column(
+            children: [
+              // Custom Desktop Title Bar
+              if (isDesktop) const CustomTitleBar(),
 
-          // Offline Warning Banner
-          if (!networkState.isOnline) _buildOfflineTopBanner(context, ref, networkState),
+              // Offline Warning Banner
+              if (!networkState.isOnline) _buildOfflineTopBanner(context, ref, networkState),
 
-          // Main ERP Content Area
-          Expanded(
-            child: Row(
-              children: [
-                // Resizable Navigation Sidebar
-                Container(
-                  width: _sidebarWidth,
-                  color: theme.colorScheme.surface,
-                  child: Column(
-                    children: [
-                      // Sidebar Header (Logo Space & Pharmacy Name with Bottom Gray Line)
-                      Container(
-                        height: 72,
-                        padding: EdgeInsets.symmetric(horizontal: _isMinimized ? 0 : 20),
-                        decoration: BoxDecoration(
-                          border: Border(
-bottom: BorderSide(
-  color: theme.colorScheme.outline.withValues(alpha: 0.25),
-  width: 1,
-),                          ),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: _isMinimized ? MainAxisAlignment.center : MainAxisAlignment.start,
-                          children: [
-                            // Dedicated space for your manual logo upload
-                            SizedBox(
-                              width: 32,
-                              height: 32,
-                              child: Image.asset(
-                                'assets/images/logo.png', // Upload your logo here
-                                errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(), // No fallback icon
+              // Main ERP Content Area
+              Expanded(
+                child: Row(
+                  children: [
+                    // Resizable Navigation Sidebar
+                    Container(
+                      width: _sidebarWidth,
+                      color: theme.colorScheme.surface,
+                      child: Column(
+                        children: [
+                          // Sidebar Header (Logo Space & Pharmacy Name with Bottom Gray Line)
+                          Container(
+                            height: 72,
+                            padding: EdgeInsets.symmetric(horizontal: _isMinimized ? 0 : 20),
+                            decoration: BoxDecoration(
+                              border: Border(
+                                bottom: BorderSide(
+                                  color: theme.colorScheme.outline.withValues(alpha: 0.25),
+                                  width: 1,
+                                ),
                               ),
                             ),
-                            if (!_isMinimized) ...[
-                              const SizedBox(width: 12),
-                              const Expanded(
-                                child: Text(
-                                  'Main Pharmacy',
-                                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, letterSpacing: 0.3),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 12),
-
-                      // Navigation List
-                      Expanded(
-                        child: ListView.builder(
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          itemCount: navItems.length,
-                          itemBuilder: (context, index) {
-                            final item = navItems[index];
-                            final isSelected = activeIndex == index;
-
-                            return Container(
-                              margin: const EdgeInsets.only(bottom: 8),
-                              child: Material(
-                                color: isSelected
-                                    ? theme.colorScheme.primary.withValues(alpha: 0.1)
-                                    : Colors.transparent,
-                                borderRadius: BorderRadius.circular(12),
-                                child: InkWell(
-                                  onTap: () {
-                                    ref.read(activeNavIndexProvider.notifier).state = index;
-                                  },
-                                  borderRadius: BorderRadius.circular(12),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                                    child: Row(
-                                      mainAxisAlignment: _isMinimized ? MainAxisAlignment.center : MainAxisAlignment.start,
-                                      children: [
-                                        Icon(
-                                          item.icon,
-                                          size: 22,
-                                          color: isSelected
-                                              ? theme.colorScheme.primary
-                                              : theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                                        ),
-                                        if (!_isMinimized) ...[
-                                          const SizedBox(width: 16),
-                                          Expanded(
-                                            child: Text(
-                                              item.title,
-                                              style: TextStyle(
-                                                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                                                color: isSelected
-                                                    ? theme.colorScheme.primary
-                                                    : theme.colorScheme.onSurface.withValues(alpha: 0.8),
-                                                fontSize: 14,
-                                              ),
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                          ),
-                                          if (item.shortcut != null)
-                                            Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                              decoration: BoxDecoration(
-                                                color: isSelected
-                                                    ? theme.colorScheme.primary.withValues(alpha: 0.15)
-                                                    : theme.colorScheme.onSurface.withValues(alpha: 0.1),
-                                                borderRadius: BorderRadius.circular(6),
-                                              ),
-                                              child: Text(
-                                                item.shortcut!,
-                                                style: TextStyle(
-                                                  fontSize: 10,
-                                                  fontWeight: FontWeight.w800,
-                                                  color: isSelected
-                                                      ? theme.colorScheme.primary
-                                                      : theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                                                ),
-                                              ),
-                                            ),
-                                        ],
-                                      ],
-                                    ),
+                            child: Row(
+                              mainAxisAlignment: _isMinimized ? MainAxisAlignment.center : MainAxisAlignment.start,
+                              children: [
+                                // Dedicated space for your manual logo upload
+                                SizedBox(
+                                  width: 32,
+                                  height: 32,
+                                  child: Image.asset(
+                                    'assets/images/logo.png', // Upload your logo here
+                                    errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(), // No fallback icon
                                   ),
                                 ),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
+                                if (!_isMinimized) ...[
+                                  const SizedBox(width: 12),
+                                  const Expanded(
+                                    child: Text(
+                                      'Main Pharmacy',
+                                      style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, letterSpacing: 0.3),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
 
-                      // Bottom Logout Box (Only Logout button, Top Gray Line)
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.surface,
-                          border: Border(
-top: BorderSide(
-  color: theme.colorScheme.outline.withValues(alpha: 0.25),
-  width: 1,
-),                          ),
-                        ),
-                        child: _isMinimized
-                            ? Center(
-                                child: IconButton(
-                                  icon: const Icon(Icons.logout_rounded, color: Colors.redAccent),
-                                  tooltip: 'Log out',
-                                  onPressed: _handleLogout,
-                                ),
-                              )
-                            : FilledButton.icon(
-                                onPressed: _handleLogout,
-                                icon: const Icon(Icons.logout_rounded, size: 18),
-                                label: const Text('Logout', style: TextStyle(fontWeight: FontWeight.bold)),
-                                style: FilledButton.styleFrom(
-                                  backgroundColor: Colors.red.withValues(alpha: 0.1),
-                                  foregroundColor: Colors.red,
-                                  elevation: 0,
-                                  padding: const EdgeInsets.symmetric(vertical: 14),
-                                  minimumSize: const Size(double.infinity, 48), // Stretch button
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          const SizedBox(height: 12),
+
+                          // Navigation List
+                          Expanded(
+                            child: ListView.builder(
+                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                              itemCount: navItems.length,
+                              itemBuilder: (context, index) {
+                                final item = navItems[index];
+                                final isSelected = activeIndex == index;
+
+                                return Container(
+                                  margin: const EdgeInsets.only(bottom: 8),
+                                  child: Material(
+                                    color: isSelected
+                                        ? theme.colorScheme.primary.withValues(alpha: 0.1)
+                                        : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: InkWell(
+                                      onTap: () {
+                                        ref.read(activeNavIndexProvider.notifier).state = index;
+                                      },
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                                        child: Row(
+                                          mainAxisAlignment: _isMinimized ? MainAxisAlignment.center : MainAxisAlignment.start,
+                                          children: [
+                                            Icon(
+                                              item.icon,
+                                              size: 22,
+                                              color: isSelected
+                                                  ? theme.colorScheme.primary
+                                                  : theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                                            ),
+                                            if (!_isMinimized) ...[
+                                              const SizedBox(width: 16),
+                                              Expanded(
+                                                child: Text(
+                                                  item.title,
+                                                  style: TextStyle(
+                                                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                                                    color: isSelected
+                                                        ? theme.colorScheme.primary
+                                                        : theme.colorScheme.onSurface.withValues(alpha: 0.8),
+                                                    fontSize: 14,
+                                                  ),
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                              ),
+                                              if (item.shortcut != null)
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                  decoration: BoxDecoration(
+                                                    color: isSelected
+                                                        ? theme.colorScheme.primary.withValues(alpha: 0.15)
+                                                        : theme.colorScheme.onSurface.withValues(alpha: 0.1),
+                                                    borderRadius: BorderRadius.circular(6),
+                                                  ),
+                                                  child: Text(
+                                                    item.shortcut!,
+                                                    style: TextStyle(
+                                                      fontSize: 10,
+                                                      fontWeight: FontWeight.w800,
+                                                      color: isSelected
+                                                          ? theme.colorScheme.primary
+                                                          : theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                                                    ),
+                                                  ),
+                                                ),
+                                            ],
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+
+                          // Bottom Logout Box (Only Logout button, Top Gray Line)
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.surface,
+                              border: Border(
+                                top: BorderSide(
+                                  color: theme.colorScheme.outline.withValues(alpha: 0.25),
+                                  width: 1,
                                 ),
                               ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Resizable separation area with gray line and cursor change
-                MouseRegion(
-                  cursor: SystemMouseCursors.resizeColumn,
-                  child: GestureDetector(
-                    onPanUpdate: (details) {
-                      setState(() {
-                        _sidebarWidth += details.delta.dx;
-                        // Constrain the sidebar width between 80 (minimized) and 350 (max width)
-                        if (_sidebarWidth < 80) _sidebarWidth = 80;
-                        if (_sidebarWidth > 350) _sidebarWidth = 350;
-                      });
-                    },
-                    child: Container(
-                      width: 5, // Invisible hit-box area for easier dragging
-                      decoration: BoxDecoration(
-                        color: theme.scaffoldBackgroundColor, // Blend with background
-                        border: Border(
-left: BorderSide(
-  color: theme.colorScheme.outline.withValues(alpha: 0.25),
-  width: 1,
-),                        ),
+                            ),
+                            child: _isMinimized
+                                ? Center(
+                                    child: IconButton(
+                                      icon: const Icon(Icons.logout_rounded, color: Colors.redAccent),
+                                      tooltip: 'Log out',
+                                      onPressed: _handleLogout,
+                                    ),
+                                  )
+                                : FilledButton.icon(
+                                    onPressed: _handleLogout,
+                                    icon: const Icon(Icons.logout_rounded, size: 18),
+                                    label: const Text('Logout', style: TextStyle(fontWeight: FontWeight.bold)),
+                                    style: FilledButton.styleFrom(
+                                      backgroundColor: Colors.red.withValues(alpha: 0.1),
+                                      foregroundColor: Colors.red,
+                                      elevation: 0,
+                                      padding: const EdgeInsets.symmetric(vertical: 14),
+                                      minimumSize: const Size(double.infinity, 48), // Stretch button
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                    ),
+                                  ),
+                          ),
+                        ],
                       ),
                     ),
-                  ),
-                ),
 
-                // Active Screen Body
-                Expanded(
-                  child: ClipRect(
-                    child: Container(
-                      color: theme.scaffoldBackgroundColor,
-                      child: indexToScreen(activeIndex, navItems),
+                    // Resizable separation area with gray line and cursor change
+                    MouseRegion(
+                      cursor: SystemMouseCursors.resizeColumn,
+                      child: GestureDetector(
+                        onPanUpdate: (details) {
+                          setState(() {
+                            _sidebarWidth += details.delta.dx;
+                            // Constrain the sidebar width between 80 (minimized) and 350 (max width)
+                            if (_sidebarWidth < 80) _sidebarWidth = 80;
+                            if (_sidebarWidth > 350) _sidebarWidth = 350;
+                          });
+                        },
+                        child: Container(
+                          width: 5, // Invisible hit-box area for easier dragging
+                          decoration: BoxDecoration(
+                            color: theme.scaffoldBackgroundColor, // Blend with background
+                            border: Border(
+                              left: BorderSide(
+                                color: theme.colorScheme.outline.withValues(alpha: 0.25),
+                                width: 1,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
+
+                    // Active Screen Body
+                    Expanded(
+                      child: ClipRect(
+                        child: Container(
+                          color: theme.scaffoldBackgroundColor,
+                          child: indexToScreen(activeIndex, navItems),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
 
   List<NavItem> _getNavItemsForRole(String role) {
     final all = [
-      NavItem(title: 'Dashboard', icon: Icons.dashboard_rounded),
+      NavItem(title: 'Dashboard', icon: Icons.dashboard_rounded, shortcut: 'F1'),
       NavItem(title: 'POS Billing', icon: Icons.point_of_sale_rounded, shortcut: 'F2'),
-      NavItem(title: 'Inventory Master', icon: Icons.inventory_2_rounded),
-      NavItem(title: 'Purchases', icon: Icons.shopping_bag_rounded),
-      NavItem(title: 'Reports & Analytics', icon: Icons.assessment_rounded),
-      NavItem(title: 'Settings & Backup', icon: Icons.settings_rounded),
-      NavItem(title: 'About Us', icon: Icons.info_outline_rounded),
+      NavItem(title: 'Inventory Master', icon: Icons.inventory_2_rounded, shortcut: 'F3'),
+      NavItem(title: 'Purchases', icon: Icons.shopping_bag_rounded, shortcut: 'F4'),
+      NavItem(title: 'Reports & Analytics', icon: Icons.assessment_rounded, shortcut: 'F5'),
+      NavItem(title: 'Settings & Backup', icon: Icons.settings_rounded, shortcut: 'F6'),
+      NavItem(title: 'About Us', icon: Icons.info_outline_rounded, shortcut: 'F7'),
     ];
 
     if (role == AppConstants.roleCashier) {

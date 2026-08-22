@@ -89,7 +89,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -467,7 +467,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> with SingleTicker
             const SizedBox(height: 16),
 
             // 6. Tab Views Area (with Pagination)
-            Expanded(
+            SizedBox(
+              height: 540,
               child: Container(
                 decoration: BoxDecoration(
                   color: theme.colorScheme.surface,

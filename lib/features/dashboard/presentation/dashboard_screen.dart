@@ -92,7 +92,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with TickerPr
                           style: TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.w800,
-                            color: Colors.black,
+                            color: Colors.white,
                             letterSpacing: 0.3,
                           ),
                         ),
@@ -101,7 +101,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with TickerPr
                           'Real-time overview of inventory health, stock reorder alerts, and expiry risk monitoring',
                           style: TextStyle(
                             fontSize: 13,
-                            color: Colors.black.withValues(alpha: 0.85),
+                            color: Colors.white.withValues(alpha: 0.85),
                             fontWeight: FontWeight.w500,
                           ),
                         ),
